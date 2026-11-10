@@ -1,0 +1,45 @@
+﻿<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Git Support</title><link rel="stylesheet" href="/static/style.css?v=5"></head>
+<body>
+<div class="layout">
+<aside class="sidebar"><a class="brand" href="#chat"><span class="brand-mark">G</span><span>Git Support<small>Рабочее пространство</small></span></a>
+<nav aria-label="Основная навигация"><a href="#chat">Чат</a><a href="#knowledge">База знаний</a><a href="#rag-evaluation">Тесты RAG</a><a href="#settings">Настройки</a></nav>
+<div class="sidebar-note"><span class="status-dot"></span> Локальное приложение</div></aside>
+<main><header class="topbar"><span>Техническая поддержка <span class="slash">/</span> Git</span><span class="top-label">РАБОЧЕЕ ПРОСТРАНСТВО</span></header>
+<div class="content">
+<section id="chat" class="page" aria-label="Чат">
+  <div class="chat-workspace">
+    <aside class="panel conversation-sidebar" aria-label="Беседы">
+      <button id="chat-new" type="button">Новая беседа</button>
+      <div id="chat-conversations"></div>
+      <button id="chat-archive" class="conversation-option" type="button">Архив вопросов</button>
+    </aside>
+    <section class="panel chat-panel" aria-labelledby="chat-conversation-title">
+      <h2 id="chat-conversation-title">Новая беседа</h2>
+      <p id="chat-empty">Задайте вопрос о Git, чтобы начать беседу.</p>
+      <button id="chat-more" class="conversation-option" type="button" hidden>Показать более ранние вопросы</button>
+      <div id="chat-messages" aria-label="Переписка" tabindex="0"></div>
+      <form id="chat-form">
+        <label for="chat-question">Вопрос о Git</label>
+        <textarea id="chat-question" rows="3" maxlength="10000" required></textarea>
+        <button id="chat-submit" type="submit">Отправить</button>
+      </form>
+      <p id="chat-status" role="status"></p>
+    </section>
+    <details id="chat-references" class="panel chat-references" hidden>
+      <summary>Источники и диагностика</summary>
+      <div id="chat-reference-items"></div>
+    </details>
+  </div>
+</section>
+<section id="knowledge" class="page"><div class="eyebrow">ИСТОЧНИКИ</div><h1>База знаний</h1><p class="lead">Документы и материалы, на которых будут основаны ответы помощника.</p><div class="panel"><h2 id="document-form-title">Добавить документ</h2><p>Поля со звёздочкой (*) обязательны для заполнения.</p><p>TXT, Markdown, AsciiDoc, HTML или ZIP с текстовыми файлами, до 20 МБ. Подготовка и индексация используют платный RouterAI.</p><form id="document-form"><div class="form-grid"><label>Файл <span aria-hidden="true">*</span><input name="file" type="file" accept=".txt,.md,.markdown,.adoc,.asciidoc,.asc,.html,.htm,.zip" required></label><label>Название <span aria-hidden="true">*</span><input name="title" maxlength="500" required></label><label>Тип источника <span aria-hidden="true">*</span><select name="source_type" required><option value="official">Официальный</option><option value="third_party">Сторонний</option></select></label><label>Язык <span aria-hidden="true">*</span><input name="language" placeholder="Например, русский" maxlength="50" required></label><label>Версия или редакция<input name="version" maxlength="200"></label><label>Дата публикации<input name="published_at" type="date"></label><label>URL источника<input name="source_url" type="url" maxlength="2048"></label><label>Git-коммит<input name="git_commit" maxlength="100"></label></div><div class="actions"><button type="submit" id="document-submit">Загрузить</button><button type="button" id="cancel-replace" hidden>Отменить замену</button></div><p id="document-message" role="status" aria-live="polite"></p></form></div><div class="panel section-panel"><h2>Документы</h2><p id="document-empty">Документов пока нет.</p><div id="document-list"></div></div><div class="panel section-panel" id="document-detail" hidden><h2 id="detail-title"></h2><div id="detail-meta"></div><h3>Извлечённый текст</h3><pre id="detail-text" class="document-text"></pre></div><div class="panel section-panel" id="chunk-panel" hidden><h2>Чанки документа</h2><p id="chunk-summary" role="status" aria-live="polite"></p><div id="chunk-warnings"></div><div class="actions"><button type="button" id="chunk-prev">Назад</button><button type="button" id="chunk-next">Далее</button></div><div id="chunk-list"></div></div></section>
+<section id="rag-evaluation" class="page" aria-labelledby="rag-evaluation-title">
+  <div class="eyebrow">ПРОВЕРКА ОТВЕТОВ</div>
+  <h1 id="rag-evaluation-title">Тесты RAG</h1>
+  <p class="lead">Скопируйте вопрос и задайте его в чате. Затем раскройте эталон и сравните ответ, ключевые пункты и источники.</p>
+  <p id="evaluation-status" role="status">Загрузка вопросов…</p>
+  <div id="evaluation-cases"></div>
+</section>
+<section id="settings" class="page"><div class="eyebrow">КОНФИГУРАЦИЯ</div><h1>Настройки</h1><p class="lead">Подключение провайдера и параметры работы помощника.</p><div class="panel costs-panel"><h2>Расходы RouterAI</h2><p id="costs" aria-live="polite">Загрузка расходов…</p><small>Суммы округлены до целого рубля. Полная точность сохранена в журнале.</small></div><div class="panel section-panel"><h2>Подготовка документов</h2><form id="chunk-plugin-form"><label>Плагин обработки и чанкинга<select name="plugin" id="chunk-plugin" aria-describedby="chunk-plugin-help" required></select></label><p id="chunk-plugin-help" class="hint">После смены плагина подготовьте чанки документов заново. Docling — экспериментальный вариант.</p><button type="submit">Сохранить плагин</button><p id="chunk-plugin-message" role="status" aria-live="polite"></p></form></div><div class="panel section-panel"><form id="settings-form"><h2>Подключение RouterAI</h2><div class="form-grid"><label>API Base URL<input name="base_url" type="url" required></label><label>API-ключ<input name="api_key" type="password" autocomplete="new-password"><small id="key-status"></small></label><label>Модель embeddings<input name="embedding_model" required></label><label>Модель генерации<input name="generation_model" required></label></div><label>Системный промпт<textarea name="system_prompt" rows="12" required></textarea></label><h2>Пороги поиска</h2><div class="form-grid"><label><span><input type="checkbox" name="vector_enabled"> Применять порог Vector</span><input type="number" name="vector_threshold" min="-1" max="1" step="any" required></label><label><span><input type="checkbox" name="bm25_enabled"> Применять порог BM25</span><input type="number" name="bm25_threshold" min="0" step="any" required></label></div><button type="submit">Сохранить настройки</button></form><p id="settings-message" role="status" aria-live="polite"></p></div><div class="panel section-panel"><h2>Проверка подключения</h2><p>Проверки embeddings и генерации выполняют платные запросы. Сначала сохраните настройки.</p><div class="actions"><button type="button" data-test="connection">Проверить подключение</button><button type="button" data-test="embedding">Проверить embeddings</button><button type="button" data-test="generation">Проверить JSON</button></div></div><div class="panel section-panel"><h2>Журнал операций</h2><div id="event-list"></div></div></section></div></main></div>
+<script src="/static/settings.js?v=2" defer></script><script src="/static/documents.js?v=3" defer></script><script src="/static/rag-evaluation.js" defer></script><script src="/static/chat.js?v=4" defer></script></body></html>

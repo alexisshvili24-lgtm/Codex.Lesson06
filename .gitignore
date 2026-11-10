@@ -1,0 +1,15 @@
+﻿.venv/
+.tmp/
+.temp/
+.env
+__pycache__/
+*.pyc
+
+logs/
+
+data/
+
+tests/pdf_structure_lab/input/
+tests/pdf_structure_lab/runs/
+
+.venv-docling/

@@ -1,0 +1,795 @@
+﻿{
+  "corpus": {
+    "documents": [
+      {
+        "title": "Pro Git",
+        "chunks": 878
+      },
+      {
+        "title": "git status",
+        "chunks": 26
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "RAG-01",
+      "category": "direct",
+      "question": "Какой параметр git status выбрать, если вывод должен стабильно разбираться скриптом? Какая версия формата используется по умолчанию?",
+      "answer": "Используйте git status --porcelain. Формат предназначен для машинного разбора и сохраняет стабильность независимо от настроек пользователя. Без указания версии используется v1.",
+      "criteria": [
+        "Названы --porcelain и v1.",
+        "Объяснено, почему формат пригоден для скрипта."
+      ],
+      "sources": [
+        {
+          "document": "git status",
+          "document_id": "3c8b284f-9fcf-42e3-9fa2-503c757e22ed",
+          "file": "git-status.adoc.txt",
+          "section": "git-status(1) / OPTIONS",
+          "position": 3,
+          "chunk_id": "ab1988d98bbba759e97d8b1ee07a0a5b6c3a61391b23db32533b264af3c600fa"
+        }
+      ]
+    },
+    {
+      "id": "RAG-02",
+      "category": "direct",
+      "question": "Как скрыть из git status файлы, которые Git ещё не отслеживает, оставив видимыми изменения отслеживаемых файлов?",
+      "answer": "Запустите git status --untracked-files=no или git status -uno. Режим no скрывает неотслеживаемые файлы.",
+      "criteria": [
+        "Приведена рабочая форма с режимом no.",
+        "Действие не выдаётся за игнорирование, удаление файлов или изменение индекса."
+      ],
+      "sources": [
+        {
+          "document": "git status",
+          "document_id": "3c8b284f-9fcf-42e3-9fa2-503c757e22ed",
+          "file": "git-status.adoc.txt",
+          "section": "git-status(1) / OPTIONS",
+          "position": 3,
+          "chunk_id": "ab1988d98bbba759e97d8b1ee07a0a5b6c3a61391b23db32533b264af3c600fa"
+        },
+        {
+          "document": "git status",
+          "document_id": "3c8b284f-9fcf-42e3-9fa2-503c757e22ed",
+          "file": "git-status.adoc.txt",
+          "section": "git-status(1) / OPTIONS",
+          "position": 4,
+          "chunk_id": "8095830579025ac3cfad7c11d7b987e3a520c72dc3232ec46bc957a7e5cf7209"
+        }
+      ]
+    },
+    {
+      "id": "RAG-03",
+      "category": "direct",
+      "question": "Как забрать изменения с origin, чтобы посмотреть их перед слиянием со своей веткой? Чем это отличается от git pull?",
+      "answer": "Выполните git fetch origin. Git загрузит недостающие данные и обновит ссылки на ветки origin. Текущая ветка и рабочие файлы от fetch сами по себе не изменятся. Git pull после получения данных интегрирует изменения в текущую ветку.",
+      "criteria": [
+        "Приведён git fetch origin.",
+        "Объяснено, что fetch не выполняет интеграцию, а pull выполняет."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/02-git-basics/sections/remotes.asc",
+          "section": "Работа с удалёнными репозиториями / Получение изменений из удалённого репозитория -- Fetch и Pull",
+          "position": 122,
+          "chunk_id": "a4058c2afd2ca64867b0d08b2ad2ef52f5b4d9ce9fbfecf7c8d0bf809c382bb6"
+        }
+      ]
+    },
+    {
+      "id": "RAG-04",
+      "category": "direct",
+      "question": "Я забыл добавить файл в последний локальный коммит. Как включить его в этот же коммит?",
+      "answer": "Добавьте файл в индекс командой git add <файл>, затем выполните git commit --amend. Git заменит последний коммит новым, который включает содержимое индекса.",
+      "criteria": [
+        "Указаны git add и git commit --amend в правильном порядке.",
+        "Отмечено, что последний коммит заменяется."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/02-git-basics/sections/undoing.asc",
+          "section": "Операции отмены",
+          "position": 137,
+          "chunk_id": "9a7bd4deb04911fe4b52fd673192455122cb9ac598413a271d9189176b791426"
+        }
+      ]
+    },
+    {
+      "id": "RAG-05",
+      "category": "direct",
+      "question": "Как создать аннотированный тег v1.4 с сообщением «Релиз 1.4» и посмотреть его данные?",
+      "answer": "Выполните git tag -a v1.4 -m \"Релиз 1.4\". Команда git show v1.4 покажет данные тега и коммита, на который он указывает.",
+      "criteria": [
+        "Приведены git tag -a, сообщение через -m и git show v1.4."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/02-git-basics/sections/tagging.asc",
+          "section": "Работа с тегами / Аннотированные теги",
+          "position": 131,
+          "chunk_id": "85cc77e33cc03bcb125e2c0d408abd745a1846f819aea983d9f7f8c9a4cdf266"
+        }
+      ]
+    },
+    {
+      "id": "RAG-06",
+      "category": "direct",
+      "question": "При слиянии Git написал Fast-forward. Что случилось с указателем текущей ветки и появился ли отдельный коммит слияния?",
+      "answer": "Git переместил указатель текущей ветки на коммит присоединяемой ветки. Такое слияние возможно, когда исходная вершина является предком присоединяемой. Отдельный коммит слияния в этом случае не создаётся.",
+      "criteria": [
+        "Объяснено условие fast-forward.",
+        "Указано перемещение указателя и отсутствие нового коммита слияния."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/03-git-branching/sections/basic-branching-and-merging.asc",
+          "section": "Основы ветвления и слияния / Основы ветвления",
+          "position": 158,
+          "chunk_id": "d229d9896474c8ac06418474613e327e2a24d0be138293943a109084db6c2861"
+        }
+      ]
+    },
+    {
+      "id": "RAG-07",
+      "category": "direct",
+      "question": "Что сделает git reset --hard HEAD~1 с текущей веткой, индексом и незакоммиченными правками в отслеживаемых файлах?",
+      "answer": "Команда переместит текущую ветку на первого родителя текущего коммита и приведёт индекс и рабочий каталог к этому коммиту. Незакоммиченные правки в отслеживаемых файлах могут быть безвозвратно перезаписаны.",
+      "criteria": [
+        "Названы все три области и целевая ревизия.",
+        "Отмечена потеря незакоммиченных правок."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/07-git-tools/sections/reset.asc",
+          "section": "Раскрытие тайн reset / Шаг 1: Перемещение указателя HEAD",
+          "position": 445,
+          "chunk_id": "ab19a8d5b0b9c71264fbb3da0fe443924e35520002c2ab48f1823a8455ab2215"
+        },
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/07-git-tools/sections/reset.asc",
+          "section": "Раскрытие тайн reset / Шаг 3: Обновление Рабочего Каталога (--hard)",
+          "position": 447,
+          "chunk_id": "7f2191337cfdccb4de6500e2b844c8f461b6f336ce04ddc5a00ce9810110ae75"
+        },
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/07-git-tools/sections/reset.asc",
+          "section": "Раскрытие тайн reset / Резюме",
+          "position": 448,
+          "chunk_id": "3e9bae244f22c94459a31fced6122baf13298cca16f134c855cec3268feab785"
+        }
+      ]
+    },
+    {
+      "id": "RAG-08",
+      "category": "direct",
+      "question": "Как восстановить отложенные изменения, сохранив запись в списке stash? Чем отличается git stash pop?",
+      "answer": "Используйте git stash apply. Он применяет изменения и сохраняет запись в stash. Git stash pop применяет изменения и удаляет запись при успешном применении.",
+      "criteria": [
+        "Приведён git stash apply.",
+        "Правильно объяснена разница с pop."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/07-git-tools/sections/stashing-cleaning.asc",
+          "section": "Припрятывание и очистка / Припрятывание ваших наработок",
+          "position": 508,
+          "chunk_id": "13d293fadd7f49f6e2e6a7cc3d6f500d455dde15017160f5886d86f7b161be39"
+        }
+      ]
+    },
+    {
+      "id": "RAG-09",
+      "category": "direct",
+      "question": "В v1.0 ошибка ещё отсутствует, а на текущем коммите воспроизводится. Как найти первый плохой коммит с помощью git bisect и вернуться обратно?",
+      "answer": "Запустите git bisect start, отметьте текущий коммит через git bisect bad, а v1.0 через git bisect good v1.0. Проверяйте предлагаемые коммиты и отмечайте их good или bad. После нахождения первого плохого коммита выполните git bisect reset.",
+      "criteria": [
+        "Указаны запуск и обе границы поиска.",
+        "Объяснено, как отмечать промежуточные коммиты и завершить bisect."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/07-git-tools/sections/debugging.asc",
+          "section": "Обнаружение ошибок с помощью Git / Бинарный поиск",
+          "position": 414,
+          "chunk_id": "5ad480c12427f6fc74d00342c11b15f4277c1948b2cd5ad9f7339d1d29dbfeae"
+        },
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/07-git-tools/sections/debugging.asc",
+          "section": "Обнаружение ошибок с помощью Git / Бинарный поиск",
+          "position": 415,
+          "chunk_id": "a39de9563f6c8c588c74c9d25821085442233c2d529ddec6e4c79ccc9a3c1400"
+        },
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/07-git-tools/sections/debugging.asc",
+          "section": "Обнаружение ошибок с помощью Git / Бинарный поиск",
+          "position": 416,
+          "chunk_id": "1cac45cd40ba405888784038973ef4f66c0f99f25328a91c8f111737d22a984d"
+        }
+      ]
+    },
+    {
+      "id": "RAG-10",
+      "category": "direct",
+      "question": "Я уже клонировал проект без подмодулей. Как получить и инициализировать подмодули, включая вложенные?",
+      "answer": "Выполните git submodule update --init --recursive в клонированном проекте. Параметр --init инициализирует подмодули, а --recursive распространяет операцию на вложенные подмодули.",
+      "criteria": [
+        "Приведена команда для уже клонированного проекта.",
+        "Указан параметр --recursive."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/07-git-tools/sections/submodules.asc",
+          "section": "Подмодули / Клонирование проекта с подмодулями",
+          "position": 520,
+          "chunk_id": "078572525cd3a76829f3e2983baa2604bc1e303640e4dbefdf2e87c0f82974f5"
+        }
+      ]
+    },
+    {
+      "id": "RAG-11",
+      "category": "combined",
+      "question": "После git add notes.txt я ещё раз изменил notes.txt. В git status --short стоит MM. Что значат обе буквы и как снять файл с индекса, сохранив правки?",
+      "answer": "Вне конфликта первый M означает, что версия файла в индексе отличается от HEAD. Второй M означает, что рабочая копия отличается от версии в индексе. Git reset HEAD -- notes.txt снимет файл с индекса, сохранив текущее содержимое рабочего файла.",
+      "criteria": [
+        "Правильно объяснены обе позиции MM.",
+        "Приведена команда для одного файла, которая сохраняет рабочие правки.",
+        "Объяснение статуса и снятие с индекса подтверждены разными источниками."
+      ],
+      "sources": [
+        {
+          "document": "git status",
+          "document_id": "3c8b284f-9fcf-42e3-9fa2-503c757e22ed",
+          "file": "git-status.adoc.txt",
+          "section": "git-status(1) / OUTPUT / Short Format",
+          "position": 8,
+          "chunk_id": "388c9bf47728b12a39aee926201563001c9c104f4b04d722c0c5637423a62304"
+        },
+        {
+          "document": "git status",
+          "document_id": "3c8b284f-9fcf-42e3-9fa2-503c757e22ed",
+          "file": "git-status.adoc.txt",
+          "section": "git-status(1) / OUTPUT / Short Format",
+          "position": 9,
+          "chunk_id": "02f9766df3ed7d2092cbbcfd5704e23a0b0fdd085759148c4962a2721a2da1d1"
+        },
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/02-git-basics/sections/undoing.asc",
+          "section": "Операции отмены / Отмена индексации файла",
+          "position": 138,
+          "chunk_id": "cffdbe8e192463224e1fb23a59bb9346761fda7452ad5d3570298dbedd401798"
+        },
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/02-git-basics/sections/aliases.asc",
+          "section": "Псевдонимы в Git",
+          "position": 91,
+          "chunk_id": "a11aac2cf3fca1c7182392543de06174100d5a20306f918d4e63c1b3ba610c4e"
+        }
+      ]
+    },
+    {
+      "id": "RAG-12",
+      "category": "combined",
+      "question": "Как увидеть игнорируемые файлы сборки в git status, а затем проверить, что git clean удалил бы их вместе с неотслеживаемыми каталогами, ничего не удаляя?",
+      "answer": "Для просмотра используйте git status --short --ignored. В коротком формате игнорируемые пути помечаются !!. Для предварительной проверки выполните git clean -n -d -x. Параметр -n только показывает, что было бы удалено, -d включает каталоги, а -x включает игнорируемые файлы.",
+      "criteria": [
+        "Приведена команда status с --ignored и объяснена пометка !!.",
+        "В команде clean есть все три флага: -n, -d и -x.",
+        "Команда очистки остаётся в режиме предварительного просмотра."
+      ],
+      "sources": [
+        {
+          "document": "git status",
+          "document_id": "3c8b284f-9fcf-42e3-9fa2-503c757e22ed",
+          "file": "git-status.adoc.txt",
+          "section": "git-status(1) / OPTIONS",
+          "position": 5,
+          "chunk_id": "c467d1eff3bb4ba2cec251a104596dafdcbcb6f373c5cb0230d188c8acb704d4"
+        },
+        {
+          "document": "git status",
+          "document_id": "3c8b284f-9fcf-42e3-9fa2-503c757e22ed",
+          "file": "git-status.adoc.txt",
+          "section": "git-status(1) / OUTPUT / Short Format",
+          "position": 8,
+          "chunk_id": "388c9bf47728b12a39aee926201563001c9c104f4b04d722c0c5637423a62304"
+        },
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/07-git-tools/sections/stashing-cleaning.asc",
+          "section": "Припрятывание и очистка / Очистка рабочего каталога",
+          "position": 513,
+          "chunk_id": "c829e1449803225bf6d6152031c279ae2312676175ab823477d40fbed4767855"
+        }
+      ]
+    },
+    {
+      "id": "RAG-13",
+      "category": "combined",
+      "question": "Коллеги уже начали работу от коммитов моей опубликованной ветки. Как включить в неё изменения из другой разошедшейся ветки, сохранив общую историю, и почему rebase с принудительной отправкой здесь рискован?",
+      "answer": "Выполните git merge <другая-ветка>, находясь в общей ветке. Для разошедшихся веток merge создаст коммит слияния и сохранит существующие коммиты. Rebase воспроизводит изменения как новые коммиты. Принудительная отправка переписала бы опубликованную историю, на которой уже основана работа коллег.",
+      "criteria": [
+        "Предложен merge, сохраняющий существующие коммиты.",
+        "Объяснены новые коммиты при rebase и риск перезаписи общей истории.",
+        "Ответ опирается на сравнение merge и rebase и на предупреждение о публичных коммитах."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/03-git-branching/sections/rebasing.asc",
+          "section": "Перебазирование / Простейшее перебазирование",
+          "position": 176,
+          "chunk_id": "f7169c0189a47b57f4eebabbcd31586ee15a9e420bb77a778c9422ee09da78dc"
+        },
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/03-git-branching/sections/rebasing.asc",
+          "section": "Перебазирование / Опасности перемещения",
+          "position": 180,
+          "chunk_id": "e40395041cbd0a93dd48451b429cbd688b52a4d0f722f81b62f6f37e1dc1838a"
+        },
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/03-git-branching/sections/rebasing.asc",
+          "section": "Перебазирование / Опасности перемещения",
+          "position": 181,
+          "chunk_id": "49520ac719141a29ddb4afc8d91efead67a76cc0d6b8590d1fccaafe42441fc6"
+        }
+      ]
+    },
+    {
+      "id": "RAG-14",
+      "category": "absent",
+      "question": "Как в существующем репозитории включить git sparse-checkout в режиме cone и оставить в рабочем каталоге только папки docs и src?",
+      "answer": "В текущей базе нет инструкции по git sparse-checkout и режиму cone. Для точного ответа нужна документация по этой команде.",
+      "criteria": [
+        "Ответ сообщает, что в базе недостаточно сведений о sparse-checkout в режиме cone.",
+        "Ответ не приписывает базе инструкцию и не подменяет её похожей командой."
+      ],
+      "sources": []
+    },
+    {
+      "id": "RAG-15",
+      "category": "absent",
+      "question": "Как передать git push --force-with-lease ожидаемый SHA удалённой ветки main, чтобы отправка была отклонена, если ветка успела измениться?",
+      "answer": "В текущей базе нет описания --force-with-lease и формы с ожидаемым SHA. В Pro Git встречается git push --force, но это не подтверждает синтаксис или гарантии --force-with-lease.",
+      "criteria": [
+        "Ответ прямо обозначает пробел в базе.",
+        "Обычный --force не предлагается как равнозначная команда.",
+        "Ответ не выдумывает ссылку на чанк с нужным синтаксисом."
+      ],
+      "sources": []
+    },
+    {
+      "id": "RAG-16",
+      "category": "direct",
+      "question": "Как показать два последних коммита вместе с текстом изменений каждого из них?",
+      "answer": "Выполните git log -p -2. Опция -p (или --patch) показывает патч каждого коммита, а -2 ограничивает вывод двумя коммитами.",
+      "criteria": [
+        "Приведена команда с обоими параметрами.",
+        "Объяснена роль каждого параметра."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/02-git-basics/sections/viewing-history.asc",
+          "section": "Просмотр истории коммитов",
+          "position": 144,
+          "chunk_id": "cf64ac6bf5fe204fdb305d49f407fdcf4d857fa32dc747e230e3acd9aae65b5e"
+        }
+      ]
+    },
+    {
+      "id": "RAG-17",
+      "category": "direct",
+      "question": "Как узнать, в каких коммитах появились текущие строки с 12-й по 20-ю файла parser.py, и увидеть авторов этих строк?",
+      "answer": "Выполните git blame -L 12,20 parser.py. Параметр -L ограничивает аннотацию указанным диапазоном. В выводе для строк видны коммит и имя автора.",
+      "criteria": [
+        "Указаны git blame, диапазон 12–20 и путь к файлу.",
+        "Объяснено, какие сведения показывает вывод."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/07-git-tools/sections/debugging.asc",
+          "section": "Обнаружение ошибок с помощью Git / Аннотация файла",
+          "position": 411,
+          "chunk_id": "304de01b0be3d15a0df9f22c7a530cb6e7c55efc428ec190435b4e64ffdc828c"
+        }
+      ]
+    },
+    {
+      "id": "RAG-18",
+      "category": "direct",
+      "question": "Git берёт значение user.name не из того файла, который я ожидал. Как увидеть файл, из которого взято действующее значение?",
+      "answer": "Выполните git config --show-origin user.name. Git покажет значение настройки и его источник, например путь к файлу конфигурации.",
+      "criteria": [
+        "Приведена команда с --show-origin для user.name.",
+        "Объяснено, что она показывает источник значения."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/01-introduction/sections/first-time-setup.asc",
+          "section": "Первоначальная настройка Git / Проверка настроек",
+          "position": 75,
+          "chunk_id": "1e8e0faba609f3b11a7663e4ce747c6285b6842b0eb536276791fdd68f568b21"
+        }
+      ]
+    },
+    {
+      "id": "RAG-19",
+      "category": "direct",
+      "question": "Как перенести в текущую ветку только исправление из коммита e43a6 другой ветки? Сохранится ли его хеш?",
+      "answer": "Выполните git cherry-pick e43a6. Git применит изменения выбранного коммита в текущей ветке и создаст новый коммит со своим хешем.",
+      "criteria": [
+        "Названа команда git cherry-pick e43a6.",
+        "Объяснено, что переносится изменение, а результат получает новый хеш."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/05-distributed-git/sections/maintaining.asc",
+          "section": "Сопровождение проекта / Схема с перебазированием и отбором",
+          "position": 296,
+          "chunk_id": "e7e1665cd466b638b461900ebd0b11e80f46dc7f1e57c7e057697b725e87bfa2"
+        }
+      ]
+    },
+    {
+      "id": "RAG-20",
+      "category": "direct",
+      "question": "Как вывести отдельно локальные ветки, которые уже слиты в текущую ветку, и ветки, которые ещё не слиты?",
+      "answer": "Выполните git branch --merged для уже слитых веток и git branch --no-merged для ещё не слитых. В обоих случаях точка отсчёта по умолчанию — текущая ветка.",
+      "criteria": [
+        "Оба параметра сопоставлены с правильными списками.",
+        "Указано, что сравнение идёт с текущей веткой."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/03-git-branching/sections/branch-management.asc",
+          "section": "Управление ветками",
+          "position": 164,
+          "chunk_id": "5f1876838d54e0ee05c6258d58436d25bde11fa5d0e8205adecc5b7304787a7f"
+        }
+      ]
+    },
+    {
+      "id": "RAG-21",
+      "category": "direct",
+      "question": "Что добавит к обычному выводу git status один флаг -v, а что добавят два таких флага?",
+      "answer": "С одним -v Git дополнительно покажет текст изменений, уже подготовленных к коммиту. С двумя (git status -vv) он покажет и изменения рабочей копии, которые ещё не добавлены в индекс.",
+      "criteria": [
+        "Один -v связывается с текстом подготовленных изменений.",
+        "Два -v дополнительно показывают неподготовленные изменения."
+      ],
+      "sources": [
+        {
+          "document": "git status",
+          "document_id": "3c8b284f-9fcf-42e3-9fa2-503c757e22ed",
+          "file": "git-status.adoc.txt",
+          "section": "git-status(1) / OPTIONS",
+          "position": 3,
+          "chunk_id": "ab1988d98bbba759e97d8b1ee07a0a5b6c3a61391b23db32533b264af3c600fa"
+        }
+      ]
+    },
+    {
+      "id": "RAG-22",
+      "category": "direct",
+      "question": "Как включить rerere для всех моих репозиториев и чем это поможет, если тот же конфликт возникнет снова?",
+      "answer": "Выполните git config --global rerere.enabled true. Git сможет запомнить, как вы разрешили конфликт, и повторно применить это решение, если встретит тот же конфликт.",
+      "criteria": [
+        "Приведена глобальная настройка rerere.enabled.",
+        "Объяснено повторное использование сохранённого решения."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/07-git-tools/sections/rerere.asc",
+          "section": "Rerere",
+          "position": 432,
+          "chunk_id": "fa4d996aa4342a40df8da65c9af4458f6a7de330de6f568b0f0e91c596df3c28"
+        }
+      ]
+    },
+    {
+      "id": "RAG-23",
+      "category": "direct",
+      "question": "Как посмотреть имена всех настроенных удалённых репозиториев и адреса, используемые для чтения и отправки?",
+      "answer": "Выполните git remote -v. Git выведет имена удалённых репозиториев и их URL с пометками fetch и push.",
+      "criteria": [
+        "Приведена команда git remote -v.",
+        "Объяснены обе пометки в выводе."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/02-git-basics/sections/remotes.asc",
+          "section": "Работа с удалёнными репозиториями / Просмотр удалённых репозиториев",
+          "position": 119,
+          "chunk_id": "b3aedde0043dd5356d9a77e123e6f594fc5cf773bb12accf25d7baa88d505fe0"
+        }
+      ]
+    },
+    {
+      "id": "RAG-24",
+      "category": "direct",
+      "question": "Файл debug.log уже отслеживается Git. Как подготовить его удаление из репозитория, оставив локальный файл на диске?",
+      "answer": "Выполните git rm --cached -- debug.log и зафиксируйте это изменение коммитом. Git уберёт файл из индекса, а рабочая копия останется на диске.",
+      "criteria": [
+        "Приведена команда git rm --cached для указанного файла.",
+        "Указано, что удаление из репозитория фиксируется коммитом, а локальный файл сохраняется."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/02-git-basics/sections/recording-changes.asc",
+          "section": "Запись изменений в репозиторий / Удаление файлов",
+          "position": 116,
+          "chunk_id": "adf11465a49e81da6899e1d40d5c888a2d030525bc770a533834060b24ebe948"
+        }
+      ]
+    },
+    {
+      "id": "RAG-25",
+      "category": "direct",
+      "question": "Как перед добавлением правок в индекс проверить, что в них нет лишних пробелов?",
+      "answer": "Выполните git diff --check. Git выведет найденные проблемы с пробелами в изменениях.",
+      "criteria": [
+        "Приведена команда git diff --check.",
+        "Указано, что команда сообщает о проблемах с пробелами."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/05-distributed-git/sections/contributing.asc",
+          "section": "Участие в проекте / Правила создания коммитов",
+          "position": 249,
+          "chunk_id": "34ca730283dcbc24ef92c80091fb9eebfae8fab3e861fc01107872252e0d73f7"
+        }
+      ]
+    },
+    {
+      "id": "RAG-26",
+      "category": "combined",
+      "question": "В одном файле я сделал исправление и отдельно поменял форматирование. Как выбрать только исправление для коммита, а затем проверить, что попало в индекс и что осталось в рабочей копии?",
+      "answer": "Запустите git add -p и выберите фрагменты исправления. Затем выполните git diff --staged, чтобы проверить подготовленные к коммиту изменения, и git diff, чтобы увидеть правки, оставшиеся вне индекса.",
+      "criteria": [
+        "Частичная индексация выполняется через git add -p или git add --patch.",
+        "Правильно разделены вывод git diff --staged и вывод git diff."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/07-git-tools/sections/interactive-staging.asc",
+          "section": "Интерактивное индексирование / Индексирование по частям",
+          "position": 424,
+          "chunk_id": "04fd624c8f6c9510d28b85c1e7d8da1c1eaffaadf77cdf1ee9d266a26c94cc8d"
+        },
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/02-git-basics/sections/recording-changes.asc",
+          "section": "Запись изменений в репозиторий / Просмотр индексированных и неиндексированных изменений",
+          "position": 109,
+          "chunk_id": "8563f0bb4c51793dd17f9ce193bab5edb6d3689dea64ad3b9d30d60e305e9116"
+        }
+      ]
+    },
+    {
+      "id": "RAG-27",
+      "category": "combined",
+      "question": "Как передать по почте коммиты текущей ветки, которых нет в origin/master, и как получателю применить патчи с сохранением автора и сообщения каждого коммита?",
+      "answer": "Отправитель выполняет git format-patch -M origin/master и передаёт полученные файлы патчей. Получатель применяет их по порядку через git am <файл-патча>. Команда создаёт коммиты, восстанавливая автора и сообщение из почтового представления.",
+      "criteria": [
+        "Указан git format-patch с базой origin/master. Флаг -M необязателен.",
+        "Для применения использован git am в порядке патчей.",
+        "Указано, откуда берутся автор и сообщение."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/05-distributed-git/sections/contributing.asc",
+          "section": "Участие в проекте / Публичный проект посредством E-Mail",
+          "position": 268,
+          "chunk_id": "63c29e714ad391a9ae9832bcdf539d860f0d3c8e4df4f8aa2c1daee65f358965"
+        },
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/05-distributed-git/sections/maintaining.asc",
+          "section": "Сопровождение проекта / Применение патча командой `am`",
+          "position": 285,
+          "chunk_id": "43600200d341faf712866e6e66cbf01533760bedf75d1fa84bb1fc3b56c57483"
+        }
+      ]
+    },
+    {
+      "id": "RAG-28",
+      "category": "combined",
+      "question": "Мне передали подписанный тег v2.0 и последний коммит ветки тоже подписан. Как проверить обе подписи и что понадобится для проверки подписи тега?",
+      "answer": "Выполните git tag -v v2.0, чтобы проверить подпись тега. Для GPG-подписи тега в хранилище ключей нужен публичный ключ подписанта. Для просмотра и проверки подписи последнего коммита выполните git log --show-signature -1.",
+      "criteria": [
+        "Приведены разные команды для тега и последнего коммита.",
+        "Указано требование к публичному ключу для проверки тега."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/07-git-tools/sections/signing.asc",
+          "section": "Подпись / Проверка тегов",
+          "position": 501,
+          "chunk_id": "729e99019d945d812335693ae8951b6027a1a1d3f7530c77e6f0b6985a7112fa"
+        },
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/07-git-tools/sections/signing.asc",
+          "section": "Подпись / Подпись коммитов",
+          "position": 502,
+          "chunk_id": "264d51d8b55ffa94030d064b564c4e5b6d8858c10d882321f0d054d411e7bf33"
+        }
+      ]
+    },
+    {
+      "id": "RAG-29",
+      "category": "combined",
+      "question": "Как настроить экспорт через git archive, чтобы папка test/ не попала в архив, а файл LAST_COMMIT содержал дату и имя автора экспортируемого коммита?",
+      "answer": "Добавьте в .gitattributes строки test/ export-ignore и LAST_COMMIT export-subst. В LAST_COMMIT запишите, например, Last commit date: $Format:%cd by %aN$. Зафиксируйте оба файла и выполните git archive HEAD. Git исключит каталог и подставит метаданные в файл внутри архива.",
+      "criteria": [
+        "Для каталога указан export-ignore, для файла — export-subst.",
+        "Приведён корректный шаблон даты и имени автора.",
+        "Оба файла включены в экспортируемый коммит."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/08-customizing-git/sections/attributes.asc",
+          "section": "Атрибуты Git / `export-ignore`",
+          "position": 568,
+          "chunk_id": "c4745d9c2c79d54ee29a23dd207057ad03ff7bc58f9174f87e42bf43425f4e72"
+        },
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/08-customizing-git/sections/attributes.asc",
+          "section": "Атрибуты Git / `export-subst`",
+          "position": 569,
+          "chunk_id": "0eab908e024513967ad30aa8e1446d10028da6928deaeb1a44812d9e6d52a6e8"
+        }
+      ]
+    },
+    {
+      "id": "RAG-30",
+      "category": "combined",
+      "question": "Как найти коммиты, которые добавили или убрали вызов функции parse_record, а потом открыть один из найденных коммитов по короткому хешу?",
+      "answer": "Запустите git log -S parse_record, чтобы найти коммиты, в которых изменилось число вхождений строки parse_record. Возьмите хеш нужного коммита и выполните git show <короткий-хеш>. Сокращение должно однозначно указывать на объект в этом репозитории.",
+      "criteria": [
+        "Для поиска по изменению строки указан git log -S.",
+        "Для просмотра выбранного коммита указан git show.",
+        "Объяснено требование однозначности сокращённого хеша."
+      ],
+      "sources": [
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/02-git-basics/sections/viewing-history.asc",
+          "section": "Просмотр истории коммитов / Ограничение вывода",
+          "position": 152,
+          "chunk_id": "a799dd0f38e71c1562bc003a3221d79b2a79e42c6e5c3430ae8a7d420c535b39"
+        },
+        {
+          "document": "ПроГит",
+          "document_id": "63cb98de-b703-4bfa-963a-6eb38bda6391",
+          "file": "progit2-ru-master/book/07-git-tools/sections/revision-selection.asc",
+          "section": "Выбор ревизии / Сокращённый SHA-1",
+          "position": 458,
+          "chunk_id": "67273b6749d28f6d5aadc8c382da3988eeb6392b0229494d19c6ae5b4fb3f9ef"
+        }
+      ]
+    },
+    {
+      "id": "RAG-31",
+      "category": "absent",
+      "question": "Как зарегистрировать локальный репозиторий для фонового обслуживания через git maintenance и что меняется при выборе расписания hourly вместо daily?",
+      "answer": "В базе нет инструкции по регистрации через git maintenance и настройке расписания его фоновых задач.",
+      "criteria": [
+        "Явно указан пробел в базе по git maintenance и его расписанию.",
+        "Ручной git gc не выдаётся за настройку фонового расписания."
+      ],
+      "sources": []
+    },
+    {
+      "id": "RAG-32",
+      "category": "absent",
+      "question": "Как после rebase сравнить старую и новую версии серии коммитов командой git range-diff? Какие диапазоны ей передать?",
+      "answer": "В базе не описаны git range-diff и синтаксис передачи двух диапазонов коммитов.",
+      "criteria": [
+        "Указано, что в базе нет синтаксиса git range-diff.",
+        "Обычный git diff не выдаётся за сравнение двух серий коммитов."
+      ],
+      "sources": []
+    },
+    {
+      "id": "RAG-33",
+      "category": "absent",
+      "question": "Какие ветки обновит git rebase --update-refs и что случится с веткой, которая открыта в другом рабочем дереве?",
+      "answer": "В базе нет описания параметра git rebase --update-refs и правил для веток, открытых в других рабочих деревьях.",
+      "criteria": [
+        "Отмечены оба пробела — действие флага и исключения для других рабочих деревьев.",
+        "Ответ не делает выводов о флаге из общего описания rebase."
+      ],
+      "sources": []
+    },
+    {
+      "id": "RAG-34",
+      "category": "absent",
+      "question": "Как настроить git diff --color-moved, чтобы отличать перемещённые строки от добавленных, и как при этом игнорировать изменение отступов?",
+      "answer": "В базе нет описания git diff --color-moved и настройки учёта пробелов при поиске перемещённых строк.",
+      "criteria": [
+        "Указано, что оба параметра поведения в базе не описаны.",
+        "Настройки общего цвета вывода или игнорирования пробелов не подменяют ответ о перемещённых строках."
+      ],
+      "sources": []
+    },
+    {
+      "id": "RAG-35",
+      "category": "absent",
+      "question": "Как частично клонировать репозиторий через git clone --filter=blob:none и когда Git будет скачивать отложенное содержимое файлов?",
+      "answer": "В базе нет описания частичного клонирования с --filter=blob:none и последующей загрузки объектов с содержимым файлов.",
+      "criteria": [
+        "Указано, что в базе нет сведений о фильтре и догрузке содержимого.",
+        "Поверхностное клонирование с --depth не выдаётся за фильтрацию объектов."
+      ],
+      "sources": []
+    }
+  ]
+}

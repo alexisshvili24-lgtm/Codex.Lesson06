@@ -1,0 +1,19 @@
+﻿{
+  "purpose": "База знаний для ответов о командах и использовании Git",
+  "labels": {"material": "документация и примеры для пользователей Git", "service": "служебные данные проекта, сборка, оформление", "uncertain": "недостаточно информации или неоднозначный случай"},
+  "cases": [
+    {"archive": "progit", "path": "progit2-ru-master/book/02-git-basics/sections/recording-changes.asc", "expected": "material"},
+    {"archive": "progit", "path": "progit2-ru-master/book/02-git-basics/sections/viewing-history.asc", "expected": "material"},
+    {"archive": "progit", "path": "progit2-ru-master/book/02-git-basics/sections/remotes.asc", "expected": "material"},
+    {"archive": "progit", "path": "progit2-ru-master/book/03-git-branching/sections/rebasing.asc", "expected": "material"},
+    {"archive": "progit", "path": "progit2-ru-master/C-git-commands.asc", "expected": "material"},
+    {"archive": "progit", "path": "progit2-ru-master/.github/.dependabot.yml", "expected": "service"},
+    {"archive": "progit", "path": "progit2-ru-master/.github/workflows/pr_build.yml", "expected": "service"},
+    {"archive": "progit", "path": "progit2-ru-master/atlas.json", "expected": "service"},
+    {"archive": "progit", "path": "progit2-ru-master/status.json", "expected": "service"},
+    {"archive": "synthetic-guide", "path": "examples/git-workflow.yml", "expected": "material", "text": "# Учебный пример GitHub Actions: проверка изменений при git push\n# В этом файле показано, как настроить автоматический запуск тестов после отправки коммита.\nname: Git workflow tutorial\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: git status"},
+    {"archive": "synthetic-guide", "path": "docs/README.md", "expected": "material", "text": "# Git для начинающих\nКоманда git status показывает изменённые и подготовленные к коммиту файлы. Выполните git add, чтобы добавить изменения в индекс."},
+    {"archive": "synthetic-build", "path": "docs/README.md", "expected": "service", "text": "# Сборка сайта документации\nУстановите зависимости npm ci и запустите npm run build. Публикация выполняется автоматически в CI проекта."},
+    {"archive": "synthetic-unknown", "path": "notes.txt", "expected": "uncertain", "text": "Список вопросов для обсуждения на следующей неделе."}
+  ]
+}
