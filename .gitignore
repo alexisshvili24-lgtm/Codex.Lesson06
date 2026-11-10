@@ -13,3 +13,4 @@ tests/pdf_structure_lab/input/
 tests/pdf_structure_lab/runs/
 
 .venv-docling/
+/PROJECT_MEMORY.md
