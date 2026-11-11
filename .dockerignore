@@ -1,0 +1,16 @@
+﻿**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/__pycache__
+**/*.pyc
+.git
+.venv*
+.tmp
+.temp
+data
+logs
+tests
+docs
+PROJECT_MEMORY.md
+.github

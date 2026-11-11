@@ -7,7 +7,7 @@ from typing import Literal
 from dotenv import dotenv_values
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from src import routerai
-from src.database import ROOT
+from src.database import ENV_PATH
 from src.service import repo
 
 
@@ -51,7 +51,7 @@ def generate_answer(question, sources, config, *, group_id=None, attempts=2, sea
 
 
 def generate_structured(body, config, validate, *, group_id, stage, attempts=2):
-    key = dotenv_values(ROOT / '.env', encoding='utf-8-sig').get('ROUTERAI_API_KEY')
+    key = dotenv_values(ENV_PATH, encoding='utf-8-sig').get('ROUTERAI_API_KEY')
     if not key:
         raise ValueError('API-ключ не настроен.')
     last_error = None

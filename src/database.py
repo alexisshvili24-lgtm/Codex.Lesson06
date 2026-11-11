@@ -5,7 +5,8 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from dotenv import dotenv_values
 
 ROOT = Path(__file__).resolve().parent.parent
-config = dotenv_values(ROOT / '.env', encoding='utf-8-sig')
+ENV_PATH = Path(os.environ.get('GIT_SUPPORT_ENV_PATH', str(ROOT / '.env')))
+config = dotenv_values(ENV_PATH, encoding='utf-8-sig')
 url = os.environ.get('DATABASE_URL') or config.get('DATABASE_URL') or f"sqlite:///{(ROOT / 'data' / 'app.sqlite3').as_posix()}"
 if url.startswith('sqlite:///') and not url.endswith(':memory:'):
     Path(url.removeprefix('sqlite:///')).parent.mkdir(parents=True, exist_ok=True)

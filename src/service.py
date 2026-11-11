@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from dotenv import dotenv_values, set_key
-from src.database import ROOT
+from src.database import ROOT, ENV_PATH
 from src.repository import Repository
 from src import routerai
 
@@ -31,19 +31,19 @@ class TestAnswer(BaseModel):
 
 def settings():
     data = DEFAULTS | repo.settings()
-    data['key_configured'] = bool(dotenv_values(ROOT / '.env', encoding='utf-8-sig').get('ROUTERAI_API_KEY'))
+    data['key_configured'] = bool(dotenv_values(ENV_PATH, encoding='utf-8-sig').get('ROUTERAI_API_KEY'))
     return data
 
 def save(data: Settings):
     values = data.model_dump(exclude={'api_key'})
     repo.save_settings({k: str(v).lower() if isinstance(v, bool) else str(v) for k, v in values.items()})
     if data.api_key:
-        set_key(str(ROOT / '.env'), 'ROUTERAI_API_KEY', data.api_key.strip(), encoding='utf-8-sig')
+        set_key(str(ENV_PATH), 'ROUTERAI_API_KEY', data.api_key.strip(), encoding='utf-8-sig')
     repo.log(str(uuid.uuid4()), 'settings', 'ok', payload={'changed': list(values), 'key_updated': bool(data.api_key)})
 
 def test_call(kind):
     conf = settings()
-    key = dotenv_values(ROOT / '.env', encoding='utf-8-sig').get('ROUTERAI_API_KEY')
+    key = dotenv_values(ENV_PATH, encoding='utf-8-sig').get('ROUTERAI_API_KEY')
     request_id = str(uuid.uuid4())
     if not key:
         repo.log(request_id, kind, 'not_sent', payload={'error': 'API-ключ не настроен'})

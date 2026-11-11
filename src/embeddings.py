@@ -5,7 +5,7 @@ import uuid
 from decimal import Decimal
 from dotenv import dotenv_values
 from src import routerai
-from src.database import ROOT
+from src.database import ENV_PATH
 from src.service import settings, repo
 
 
@@ -17,7 +17,7 @@ def embed_texts(texts, config=None, group_id=None):
     if not texts or any(not isinstance(text, str) or not text.strip() for text in texts):
         raise EmbeddingError('Переданы пустые тексты для embeddings.')
     conf = config if config is not None else settings()
-    key = dotenv_values(ROOT / '.env', encoding='utf-8-sig').get('ROUTERAI_API_KEY')
+    key = dotenv_values(ENV_PATH, encoding='utf-8-sig').get('ROUTERAI_API_KEY')
     request_id = str(uuid.uuid4())
     if not key:
         repo.log(request_id, 'embedding', 'not_sent', payload={'error': 'API-ключ не настроен'})

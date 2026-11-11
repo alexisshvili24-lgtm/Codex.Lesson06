@@ -1,0 +1,49 @@
+﻿name: Сборка контейнера Git Support
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Опубликовать проверенный образ в GHCR
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Собрать Linux amd64 образ
+        run: docker build --platform linux/amd64 -t git-support-check .
+      - name: Проверить запуск и использование памяти
+        run: |
+          docker volume create git-support-check-data
+          docker run -d --name git-support-check --memory 256m --cpus 0.5 --pids-limit 64 -v git-support-check-data:/app/data -p 127.0.0.1:18025:8025 git-support-check
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://127.0.0.1:18025/health; then break; fi
+            if [ "$i" = 45 ]; then docker logs git-support-check; exit 1; fi
+            sleep 1
+          done
+          docker stats --no-stream git-support-check
+          echo "Память показана для пустой базы при запуске; под нагрузкой требуется отдельное измерение."
+          docker exec git-support-check python -c "from pathlib import Path; Path('/app/data/persistence-check').write_text('ok')"
+          docker rm -f git-support-check
+          docker run --rm -v git-support-check-data:/app/data --entrypoint python git-support-check -c "from pathlib import Path; assert Path('/app/data/persistence-check').read_text() == 'ok'; assert Path('/app/data/app.sqlite3').exists(); assert Path('/app/data/tokenizers/bge-m3-tokenizer.json').exists()"
+      - name: Войти в GHCR
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - name: Опубликовать образ с SHA
+        if: inputs.publish
+        env:
+          IMAGE: ghcr.io/alexisshvili24-lgtm/codex.lesson06/git-support
+          COMMIT: ${{ github.sha }}
+        run: |
+          docker tag git-support-check "$IMAGE:$COMMIT"
+          docker push "$IMAGE:$COMMIT"
+          echo "Образ: $IMAGE:$COMMIT" >> "$GITHUB_STEP_SUMMARY"

@@ -1,5 +1,6 @@
 ﻿from contextlib import asynccontextmanager
 from pathlib import Path
+import logging
 from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form, Query
@@ -7,7 +8,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from src import chat_repository
-from src.database import ROOT
+from src.database import ROOT, Setting, engine
+from sqlalchemy import select
 from src.service import Settings, settings, save, test_call, repo
 
 @asynccontextmanager
@@ -18,6 +20,7 @@ async def lifespan(app):
     yield
 
 app = FastAPI(title='Git Support', lifespan=lifespan)
+logger = logging.getLogger(__name__)
 app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
 
 @app.middleware('http')
@@ -26,10 +29,22 @@ async def local_origin(request: Request, call_next):
     host = request.headers.get('host', '')
     origin = request.headers.get('origin')
     parsed = urlsplit('http://' + host)
+    if request.url.path == '/health' and request.method == 'GET':
+        return await call_next(request)
     if parsed.hostname not in ('127.0.0.1', 'localhost', 'testserver') or parsed.username or parsed.password or (origin and urlsplit(origin).netloc != host):
         from fastapi.responses import JSONResponse
         return JSONResponse({'detail': 'Недопустимый источник запроса'}, status_code=403)
     return await call_next(request)
+
+@app.get('/health', include_in_schema=False)
+def health():
+    try:
+        with engine.connect() as connection:
+            connection.execute(select(Setting.name).limit(1))
+    except Exception as exc:
+        logger.exception('Проверка готовности базы данных завершилась ошибкой')
+        raise HTTPException(status_code=503, detail='База данных недоступна') from exc
+    return {'status': 'ok'}
 
 @app.get('/', include_in_schema=False)
 def index():
