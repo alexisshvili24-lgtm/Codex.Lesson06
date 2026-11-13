@@ -1,6 +1,9 @@
 ﻿from contextlib import asynccontextmanager
 from pathlib import Path
 import logging
+import os
+import re
+from urllib.parse import urlsplit
 from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form, Query
@@ -25,13 +28,33 @@ app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
 
 @app.middleware('http')
 async def local_origin(request: Request, call_next):
-    from urllib.parse import urlsplit
     host = request.headers.get('host', '')
     origin = request.headers.get('origin')
-    parsed = urlsplit('http://' + host)
     if request.url.path == '/health' and request.method == 'GET':
         return await call_next(request)
-    if parsed.hostname not in ('127.0.0.1', 'localhost', 'testserver') or parsed.username or parsed.password or (origin and urlsplit(origin).netloc != host):
+    allowed = {'127.0.0.1', 'localhost', 'testserver', '179.254.162.130'}
+    allowed.update(value.strip().lower() for value in os.environ.get('APP_ALLOWED_HOSTS', '').split(',') if value.strip())
+    valid = False
+    try:
+        if len(request.headers.getlist('host')) == 1 and re.fullmatch(r'[A-Za-z0-9.-]+(?::[0-9]{1,5})?', host):
+            parsed = urlsplit('http://' + host)
+            port = parsed.port
+            valid = parsed.hostname in allowed and (port is None or 1 <= port <= 65535)
+            if origin is not None:
+                parsed_origin = urlsplit(origin)
+                origin_port = parsed_origin.port
+                scheme = request.url.scheme
+                default_port = 443 if scheme == 'https' else 80
+                valid = (valid and len(request.headers.getlist('origin')) == 1
+                         and parsed_origin.scheme == scheme and parsed_origin.hostname == parsed.hostname
+                         and parsed_origin.username is None and parsed_origin.password is None
+                         and parsed_origin.path == '' and parsed_origin.query == '' and parsed_origin.fragment == ''
+                         and re.fullmatch(r'[A-Za-z0-9.-]+(?::[0-9]{1,5})?', parsed_origin.netloc) is not None
+                         and (origin_port is None or 1 <= origin_port <= 65535)
+                         and (origin_port or default_port) == (port or default_port))
+    except ValueError:
+        valid = False
+    if not valid:
         from fastapi.responses import JSONResponse
         return JSONResponse({'detail': 'Недопустимый источник запроса'}, status_code=403)
     return await call_next(request)
