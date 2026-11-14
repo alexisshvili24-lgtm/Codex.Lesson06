@@ -76,7 +76,7 @@ async def local_origin(request: Request, call_next):
 @app.middleware('http')
 async def require_session(request: Request, call_next):
     path = request.url.path
-    if path.startswith('/api/') and path not in {'/api/auth/login', '/api/auth/me', '/api/auth/logout'}:
+    if path.startswith('/api/') and path not in {'/api/auth/login', '/api/auth/me'}:
         user = _session_identity(request)
         if user is None:
             return JSONResponse({'detail': 'Войдите по никнейму, чтобы продолжить.'}, status_code=401)

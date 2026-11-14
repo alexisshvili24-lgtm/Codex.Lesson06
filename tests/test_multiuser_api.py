@@ -74,6 +74,7 @@ class MultiuserApiTest(unittest.TestCase):
     def test_login_logout_cookie_and_api_gate(self):
         async def check():
             self.assertIn('Вход'.encode(), (await self.client.get('/')).content)
+            self.assertEqual((await self.client.post('/api/auth/logout')).status_code, 401)
             for method, path in (
                 ('GET', '/api/settings'), ('GET', '/api/events'), ('GET', '/api/documents'),
                 ('GET', '/api/index/status'), ('GET', '/api/chat/conversations'),
@@ -104,6 +105,10 @@ class MultiuserApiTest(unittest.TestCase):
             self.assertEqual(saved.status_code, 200, saved.text)
             self.assertNotIn('api_key', (await self.client.get('/api/settings')).json())
             self.assertTrue((await self.client.get('/api/settings')).json()['key_configured'])
+            with patch('src.service.routerai.request_json', return_value=({'models': []}, 'test-request')) as request_json:
+                provider_check = await self.client.post('/api/test/connection')
+            self.assertTrue(provider_check.json()['ok'])
+            request_json.assert_called_once_with('https://routerai.ru/api/v1', 'fake-alice-key', '/models', None)
             context_token = set_user_id(alice['id'], 'fake-alice-key', key_version(alice['id']))
             try:
                 repo.log('alice-paid-call', 'generation', 'ok', 'test-model', cost=Decimal('1.23456789'),
@@ -143,8 +148,16 @@ class MultiuserApiTest(unittest.TestCase):
         async def check():
             await self.login('User_1')
             self.assertEqual((await self.client.get('/api/documents')).status_code, 200)
+            upload = await self.client.post('/api/documents', data={
+                'title': 'Общий тестовый документ', 'source_type': 'official', 'language': 'ru'
+            }, files={'file': ('shared-test.md', '# Общий материал\n\nТекст для двух профилей.', 'text/markdown')})
+            self.assertEqual(upload.status_code, 200, upload.text)
+            shared_document_id = upload.json()['id']
             await self.client.post('/api/auth/logout')
             admin = await self.login('ADMIN')
+            visible_documents = await self.client.get('/api/documents')
+            self.assertEqual(visible_documents.status_code, 200)
+            self.assertIn(shared_document_id, {item['id'] for item in visible_documents.json()})
             self.assertTrue(admin['is_admin'])
             admin_settings = (await self.client.get('/api/settings')).json()
             self.assertTrue(admin_settings['is_admin'])
