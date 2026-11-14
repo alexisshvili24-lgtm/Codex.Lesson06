@@ -20,7 +20,7 @@ def upgrade():
         'users',
         sa.Column('id', sa.Integer(), primary_key=True),
         sa.Column('nickname', sa.String(32), nullable=False),
-        sa.Column('nickname_normalized', sa.String(32), nullable=False),
+        sa.Column('nickname_normalized', sa.String(96), nullable=False),
         sa.Column('is_admin', sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column('api_key_version', sa.String(36), nullable=True),
         sa.Column('created_at', sa.String(40), nullable=False),

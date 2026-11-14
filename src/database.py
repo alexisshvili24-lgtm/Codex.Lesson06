@@ -111,7 +111,7 @@ class User(Base):
     __tablename__ = 'users'
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     nickname: Mapped[str] = mapped_column(String(32))
-    nickname_normalized: Mapped[str] = mapped_column(String(32), unique=True)
+    nickname_normalized: Mapped[str] = mapped_column(String(96), unique=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     api_key_version: Mapped[str | None] = mapped_column(String(36), nullable=True)
     created_at: Mapped[str] = mapped_column(String(40))

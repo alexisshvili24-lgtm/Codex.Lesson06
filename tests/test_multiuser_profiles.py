@@ -59,6 +59,9 @@ class MultiuserMigrationTest(unittest.TestCase):
         if not self.migration_fixture:
             self.skipTest('Миграция уже применена общей тестовой базой; сценарий проверяется отдельно на чистом снимке.')
         with engine.connect() as connection:
+            normalized_column = next(column for column in inspect(connection).get_columns('users')
+                                     if column['name'] == 'nickname_normalized')
+            self.assertEqual(normalized_column['type'].length, 96)
             admin = connection.execute(text("SELECT nickname, is_admin FROM users WHERE id = 1")).one()
             self.assertEqual(tuple(admin), ('admin', True))
             prompt = connection.execute(text("SELECT value FROM user_settings WHERE user_id = 1 AND name = 'system_prompt'")).scalar_one()
@@ -91,6 +94,15 @@ class MultiuserMigrationTest(unittest.TestCase):
         self.assertEqual(composed['id'], casefolded['id'])
         self.assertEqual(composed['nickname'], 'José')
         self.assertEqual(normalize_nickname('a' * 32), ('a' * 32, 'a' * 32))
+        ligature_nickname = '\ufb03' * 32
+        ligature_profile = get_or_create(ligature_nickname)
+        self.assertEqual(len(ligature_profile['nickname']), 32)
+        self.assertEqual(normalize_nickname(ligature_nickname)[1], 'ffi' * 32)
+        with engine.connect() as connection:
+            normalized_length = connection.execute(text(
+                "SELECT length(nickname_normalized) FROM users WHERE id = :id"),
+                {'id': ligature_profile['id']}).scalar_one()
+        self.assertEqual(normalized_length, 96)
         user = get_or_create('User_01')
         self.assertFalse(user['is_admin'])
         self.assertEqual(get_or_create('user_01')['id'], user['id'])
