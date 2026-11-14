@@ -5,6 +5,7 @@ import uuid
 import unittest
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from unittest.mock import patch
 from pathlib import Path
@@ -572,6 +573,45 @@ class MultiuserApiTest(unittest.TestCase):
             bob_events = (await self.client.get('/api/events')).json()
             self.assertEqual(bob_events['costs_by_key_version'], [])
             self.assertEqual(bob_events['costs']['generation'], '0')
+
+        asyncio.run(check())
+
+    def test_parallel_profile_key_updates_preserve_both_secrets(self):
+        async def check():
+            alice = await self.login('ParallelKeyAlice')
+            await self.client.post('/api/auth/logout')
+            bob = await self.login('ParallelKeyBob')
+
+            original_set_key = service.set_key
+            write_guard = threading.Lock()
+            active_writers = 0
+            max_active_writers = 0
+
+            def slow_set_key(*args, **kwargs):
+                nonlocal active_writers, max_active_writers
+                with write_guard:
+                    active_writers += 1
+                    max_active_writers = max(max_active_writers, active_writers)
+                try:
+                    time.sleep(0.05)
+                    return original_set_key(*args, **kwargs)
+                finally:
+                    with write_guard:
+                        active_writers -= 1
+
+            with patch('src.service.set_key', side_effect=slow_set_key):
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    futures = [pool.submit(service._store_user_api_key, alice['id'], 'parallel-alice-key'),
+                               pool.submit(service._store_user_api_key, bob['id'], 'parallel-bob-key')]
+                    for future in futures:
+                        future.result(timeout=10)
+
+            stored = dotenv_values(ENV_PATH, encoding='utf-8-sig')
+            self.assertEqual(stored[service._key_name(alice['id'])], 'parallel-alice-key')
+            self.assertEqual(stored[service._key_name(bob['id'])], 'parallel-bob-key')
+            self.assertEqual(max_active_writers, 1)
+            self.assertTrue(key_version(alice['id']))
+            self.assertTrue(key_version(bob['id']))
 
         asyncio.run(check())
 
