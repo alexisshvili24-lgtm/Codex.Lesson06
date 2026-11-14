@@ -180,8 +180,10 @@ class MultiuserApiTest(unittest.TestCase):
             admin_settings = (await self.client.get('/api/settings')).json()
             self.assertTrue(admin_settings['is_admin'])
             self.assertTrue(admin_settings['key_configured'])
+            admin_settings['base_url'] = 'https://router.example/api/v1'
             admin_settings['generation_model'] = 'test/admin-model'
-            saved = await self.client.put('/api/settings', json=admin_settings)
+            with patch('src.service.allowed_base_urls', return_value={'https://router.example/api/v1'}):
+                saved = await self.client.put('/api/settings', json=admin_settings)
             self.assertEqual(saved.status_code, 200, saved.text)
             plugin_saved = await self.client.put('/api/chunk-plugins', json={'plugin': 'local'})
             self.assertEqual(plugin_saved.status_code, 200, plugin_saved.text)
@@ -190,6 +192,7 @@ class MultiuserApiTest(unittest.TestCase):
             await self.client.post('/api/auth/logout')
             await self.login('User_1')
             visible = (await self.client.get('/api/settings')).json()
+            self.assertEqual(visible['base_url'], 'https://router.example/api/v1')
             self.assertEqual(visible['generation_model'], 'test/admin-model')
             self.assertEqual(visible['embedding_model'], 'baai/bge-m3')
             plugin_state = (await self.client.get('/api/chunk-plugins')).json()
