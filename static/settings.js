@@ -19,6 +19,7 @@ updateNavigation();
 const fields = ['base_url', 'embedding_model', 'generation_model', 'system_prompt', 'vector_enabled', 'vector_threshold', 'bm25_enabled', 'bm25_threshold'];
 async function api(url, options) {
   const response = await fetch(url, options);
+  if (response.status === 401) { location.replace('/'); throw new Error('Сессия завершена. Войдите снова.'); }
   const data = await response.json();
   if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Проверьте значения полей.');
   return data;
@@ -30,6 +31,9 @@ async function load() {
     if (el.type === 'checkbox') el.checked = data[name] === true || data[name] === 'true';
     else el.value = data[name];
   }
+  form.elements.base_url.readOnly = !data.can_edit_global;
+  form.elements.generation_model.readOnly = !data.can_edit_global;
+  form.elements.embedding_model.readOnly = true;
   document.querySelector('#key-status').textContent = data.key_configured ? 'Ключ сохранён. Чтобы заменить его, введите новый.' : 'Ключ пока не задан.';
   await loadEvents();
 }
@@ -50,6 +54,8 @@ async function loadChunkPlugins() {
     missing.disabled = true; select.append(missing);
   }
   select.value = data.selected;
+  select.disabled = !data.can_edit;
+  document.querySelector('#chunk-plugin-form button[type="submit"]').disabled = !data.can_edit;
 }
 document.querySelector('#chunk-plugin-form').addEventListener('submit', async event => {
   event.preventDefault();

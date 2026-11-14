@@ -1,0 +1,20 @@
+﻿<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Вход — Git Support</title><link rel="stylesheet" href="/static/style.css?v=6"></head>
+<body class="login-page">
+<main class="login-card" aria-labelledby="login-title">
+  <a class="brand login-brand" href="/"><span class="brand-mark">G</span><span>Git Support<small>Рабочее пространство</small></span></a>
+  <div class="eyebrow">ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ</div>
+  <h1 id="login-title">Вход</h1>
+  <p class="lead">Введите никнейм, чтобы открыть свой профиль.</p>
+  <form id="login-form">
+    <label for="nickname">Никнейм</label>
+    <input id="nickname" name="nickname" autocomplete="username" maxlength="32" required autofocus>
+    <p class="hint">От 1 до 32 букв, цифр, дефисов или подчёркиваний.</p>
+    <button type="submit">Войти</button>
+    <p id="login-status" role="status" aria-live="polite"></p>
+  </form>
+</main>
+<script src="/static/login.js?v=1" defer></script>
+</body>
+</html>

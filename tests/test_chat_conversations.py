@@ -41,7 +41,7 @@ class ChatConversationsTest(unittest.TestCase):
             patch('src.rag_service.search_documents', return_value={'rrf': [], 'vector': [], 'bm25': []}) as search,
             patch('src.rag_service.generate_answer', return_value=Answer(
                 status='no_answer', answer='Предыдущий ответ', source_ids=[], missing_information=[])) as generate,
-            patch('src.rag_answer.dotenv_values', return_value={'ROUTERAI_API_KEY': 'test-key'}),
+            patch('src.rag_answer.api_key', return_value='test-key'),
             patch('src.rag_answer.routerai.request_json', side_effect=router_response),
             patch('src.rag_answer.routerai.cost', return_value=(None, None)),
         ):

@@ -1,5 +1,6 @@
 ﻿"""Хранилище профилей и серверных сессий."""
 import re
+import threading
 import unicodedata
 from datetime import datetime, timedelta, timezone
 
@@ -10,6 +11,7 @@ from src.database import Session, User, UserSession
 
 _NICKNAME = re.compile(r'^[\w-]{1,32}$', re.UNICODE)
 SESSION_TTL = timedelta(days=30)
+_creation_lock = threading.Lock()
 
 
 class InvalidNickname(ValueError):
@@ -30,6 +32,11 @@ def _identity(user: User) -> dict:
 
 def get_or_create(nickname: str) -> dict:
     display_name, normalized = normalize_nickname(nickname)
+    with _creation_lock:
+        return _get_or_create_locked(display_name, normalized)
+
+
+def _get_or_create_locked(display_name: str, normalized: str) -> dict:
     now = datetime.now(timezone.utc).isoformat()
     try:
         with Session.begin() as session:

@@ -1,44 +1,68 @@
 ﻿import json
-from datetime import datetime, timezone
 from decimal import Decimal
 from sqlalchemy import select
-from src.database import Session, Setting, Event, ChatTurn
+from src.database import Session, Setting, Event, EventOwner, UserSetting, ChatTurn
+from src.request_context import current_user_id
+from src.event_store import add_event
+
+_PERSONAL_SETTINGS = {'system_prompt', 'vector_enabled', 'vector_threshold', 'bm25_enabled', 'bm25_threshold'}
 
 class Repository:
-    def settings(self):
+    def settings(self, user_id=None):
+        owner_id = user_id if user_id is not None else current_user_id()
         with Session() as s:
-            return {row.name: row.value for row in s.scalars(select(Setting)).all()}
+            shared = {row.name: row.value for row in s.scalars(select(Setting)).all()
+                      if row.name not in _PERSONAL_SETTINGS}
+            personal = {row.name: row.value for row in s.scalars(
+                select(UserSetting).where(UserSetting.user_id == owner_id)).all()}
+            return shared | personal
 
-    def save_settings(self, values):
+    def save_settings(self, values, user_id=None):
+        owner_id = user_id if user_id is not None else current_user_id()
         with Session.begin() as s:
             for name, value in values.items():
+                if name in _PERSONAL_SETTINGS:
+                    row = s.get(UserSetting, (owner_id, name))
+                    if row is None:
+                        s.add(UserSetting(user_id=owner_id, name=name, value=str(value)))
+                    else:
+                        row.value = str(value)
+                    continue
                 row = s.get(Setting, name)
                 if row is None:
                     s.add(Setting(name=name, value=str(value)))
                 else:
                     row.value = str(value)
 
-    def log(self, request_id, operation, status, model='', duration_ms=0, cost=None, payload=None):
+    def log(self, request_id, operation, status, model='', duration_ms=0, cost=None, payload=None,
+            user_id=None, key_version_id=None):
+        owner_id = user_id if user_id is not None else current_user_id()
         with Session.begin() as s:
-            s.add(Event(request_id=request_id, created_at=datetime.now(timezone.utc).isoformat(), operation=operation,
-                        status=status, model=model, duration_ms=duration_ms, cost_rub=str(cost) if cost is not None else None,
-                        payload=json.dumps(payload or {}, ensure_ascii=False, default=str)))
+            add_event(s, request_id, operation, status, model, duration_ms, cost, payload,
+                      user_id=owner_id, key_version_id=key_version_id)
 
-    def events(self):
+    def events(self, user_id=None):
+        owner_id = user_id if user_id is not None else current_user_id()
         with Session() as s:
-            rows = s.scalars(select(Event).order_by(Event.id.desc()).limit(200)).all()
+            rows = s.scalars(select(Event).join(EventOwner).where(EventOwner.user_id == owner_id)
+                             .order_by(Event.id.desc()).limit(200)).all()
             return [{key: getattr(row, key) for key in ('id','request_id','created_at','operation','status','model','duration_ms','cost_rub','payload')} for row in rows]
 
-    def chat_history(self, limit=50, offset=0):
+    def chat_history(self, limit=50, offset=0, user_id=None):
+        owner_id = user_id if user_id is not None else current_user_id()
         with Session() as session:
             rows = session.scalars(select(Event).where(Event.operation == 'rag', Event.status == 'ok',
+                                                       Event.id.in_(select(EventOwner.event_id).where(EventOwner.user_id == owner_id)),
                                                        ~select(ChatTurn.event_id).where(ChatTurn.event_id == Event.id).exists())
                                    .order_by(Event.id.desc()).offset(offset).limit(limit)).all()
             return [json.loads(row.payload) for row in reversed(rows)]
 
-    def costs(self):
+    def costs(self, user_id=None):
+        owner_id = user_id if user_id is not None else current_user_id()
         with Session() as s:
-            rows = s.scalars(select(Event).where(Event.operation.in_(['embedding', 'generation']), Event.status != 'not_sent')).all()
+            rows = s.scalars(select(Event).join(EventOwner).where(
+                EventOwner.user_id == owner_id, Event.operation.in_(['embedding', 'generation']),
+                Event.status != 'not_sent')).all()
             totals = {'embedding': Decimal(0), 'generation': Decimal(0)}
             unknown = 0
             for row in rows:
@@ -48,16 +72,21 @@ class Repository:
                     totals[row.operation] += Decimal(row.cost_rub)
             return {'embedding': str(totals['embedding']), 'generation': str(totals['generation']),
                     'total': str(sum(totals.values())), 'calls': len(rows), 'unknown': unknown}
-    def embedding_group_cost(self, group_id):
+    def embedding_group_cost(self, group_id, user_id=None):
+        owner_id = user_id if user_id is not None else current_user_id()
         with Session() as session:
-            rows = session.scalars(select(Event).where(Event.operation == 'embedding', Event.status != 'not_sent')).all()
+            rows = session.scalars(select(Event).join(EventOwner).where(
+                EventOwner.user_id == owner_id, Event.operation == 'embedding', Event.status != 'not_sent')).all()
             relevant = [row for row in rows if json.loads(row.payload).get('group_id') == group_id]
             total = sum((Decimal(row.cost_rub) for row in relevant if row.cost_rub is not None), Decimal(0))
             return {'cost_rub':str(total), 'unknown':sum(row.cost_rub is None for row in relevant), 'calls':len(relevant)}
 
-    def last_index_job(self):
+    def last_index_job(self, user_id=None):
+        owner_id = user_id if user_id is not None else current_user_id()
         with Session() as session:
-            row = session.scalars(select(Event).where(Event.operation == 'index_job').order_by(Event.id.desc()).limit(1)).first()
+            row = session.scalars(select(Event).join(EventOwner).where(
+                EventOwner.user_id == owner_id, Event.operation == 'index_job')
+                .order_by(Event.id.desc()).limit(1)).first()
             if row is None:
                 return None
             return {'status':row.status, 'request_id':row.request_id, 'payload':json.loads(row.payload)}

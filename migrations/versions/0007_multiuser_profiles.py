@@ -26,7 +26,6 @@ def upgrade():
         sa.Column('created_at', sa.String(40), nullable=False),
         sa.UniqueConstraint('nickname_normalized', name='uq_users_nickname_normalized'),
     )
-    op.create_index('ix_users_nickname_normalized', 'users', ['nickname_normalized'])
     op.create_table(
         'user_sessions',
         sa.Column('token_hash', sa.String(64), primary_key=True),
@@ -103,5 +102,4 @@ def downgrade():
     op.drop_index('ix_user_sessions_expires_at', table_name='user_sessions')
     op.drop_index('ix_user_sessions_user_id', table_name='user_sessions')
     op.drop_table('user_sessions')
-    op.drop_index('ix_users_nickname_normalized', table_name='users')
     op.drop_table('users')

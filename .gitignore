@@ -2,6 +2,7 @@
 .tmp/
 .temp/
 .env
+.env.lock
 __pycache__/
 *.pyc
 

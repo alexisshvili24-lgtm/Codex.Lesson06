@@ -17,7 +17,7 @@ class RagAnswerTest(unittest.TestCase):
     @patch('src.rag_answer.repo')
     @patch('src.rag_answer.routerai.cost', return_value=(None, None))
     @patch('src.rag_answer.routerai.request_json')
-    @patch('src.rag_answer.dotenv_values', return_value={'ROUTERAI_API_KEY': 'secret-key'})
+    @patch('src.rag_answer.api_key', return_value='secret-key')
     def test_generation_records_request_response_and_masks_key(self, env, request, cost, repo):
         request.return_value = ({'choices':[{'message':{'content':'{"status":"full","answer":"Ответ [S1]","source_ids":["S1"],"missing_information":[]}'}}], 'usage':{'total_tokens':10}}, 'gen-id')
         config={'generation_model':'test', 'system_prompt':'prompt secret-key', 'base_url':'https://example.test'}

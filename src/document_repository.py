@@ -1,7 +1,8 @@
 ﻿import json
 from datetime import datetime, timezone
 from sqlalchemy import select
-from src.database import Session, Document, Event, IndexGeneration, IndexPending
+from src.database import Session, Document, IndexGeneration, IndexPending
+from src.event_store import add_event
 
 FIELDS = ('id', 'title', 'source_type', 'language', 'version', 'published_at', 'source_url', 'git_commit', 'filename', 'sha256', 'uploaded_at', 'status', 'chunk_count')
 
@@ -45,9 +46,8 @@ def write_document(values, request_id, replace=False):
         else:
             row = Document(**values)
             s.add(row)
-        s.add(Event(request_id=request_id, created_at=datetime.now(timezone.utc).isoformat(), operation='document_replace' if replace else 'document_upload',
-                    status='ok', model='', duration_ms=0, cost_rub=None,
-                    payload=json.dumps({'document_id': values['id'], 'filename': values['filename'], 'sha256': values['sha256']}, ensure_ascii=False)))
+        add_event(s, request_id, 'document_replace' if replace else 'document_upload', 'ok',
+                  payload={'document_id': values['id'], 'filename': values['filename'], 'sha256': values['sha256']})
         return serialize(row)
 
 def delete_document(document_id, request_id):
@@ -55,7 +55,8 @@ def delete_document(document_id, request_id):
         row = s.get(Document, document_id)
         if row is None:
             return False
-        payload = json.dumps({'document_id': row.id, 'filename': row.filename, 'sha256': row.sha256}, ensure_ascii=False)
+        event_payload = {'document_id': row.id, 'filename': row.filename, 'sha256': row.sha256}
         s.delete(row)
-        s.add(Event(request_id=request_id, created_at=datetime.now(timezone.utc).isoformat(), operation='document_delete', status='ok', model='', duration_ms=0, cost_rub=None, payload=payload))
+        add_event(s, request_id, 'document_delete', 'ok',
+                  payload=event_payload)
         return True
