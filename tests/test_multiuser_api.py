@@ -127,13 +127,31 @@ class MultiuserApiTest(unittest.TestCase):
             alice_event_ids = {item['request_id'] for item in alice_events['events']}
             await self.client.post('/api/auth/logout')
 
-            await self.login('Bob')
+            bob = await self.login('Bob')
             bob_settings = (await self.client.get('/api/settings')).json()
             self.assertNotEqual(bob_settings['system_prompt'], 'Личный промпт Alice')
             self.assertFalse(bob_settings['key_configured'])
+            bob_settings['system_prompt'] = 'Личный промпт Bob'
+            bob_settings['vector_threshold'] = 0.9
+            bob_settings['api_key'] = 'fake-bob-key'
+            self.assertEqual((await self.client.put('/api/settings', json=bob_settings)).status_code, 200)
+            with patch('src.service.routerai.request_json', return_value=({'models': []}, 'test-request')) as request_json:
+                provider_check = await self.client.post('/api/test/connection')
+            self.assertTrue(provider_check.json()['ok'])
+            request_json.assert_called_once_with('https://routerai.ru/api/v1', 'fake-bob-key', '/models', None)
+            bob_token = set_user_id(bob['id'], 'fake-bob-key', key_version(bob['id']))
+            try:
+                repo.log('bob-paid-call', 'generation', 'ok', 'test-model', cost=Decimal('0.25'),
+                         payload={'test': 'Bob'})
+            finally:
+                reset_user_id(bob_token)
+            bob_settings = (await self.client.get('/api/settings')).json()
+            self.assertEqual(bob_settings['system_prompt'], 'Личный промпт Bob')
+            self.assertEqual(bob_settings['vector_threshold'], '0.9')
             bob_events = (await self.client.get('/api/events')).json()
-            self.assertEqual(bob_events['costs']['generation'], '0')
+            self.assertEqual(bob_events['costs']['generation'], '0.25')
             self.assertNotIn('alice-paid-call', {item['request_id'] for item in bob_events['events']})
+            self.assertNotIn('fake-alice-key', str(bob_events))
             self.assertEqual((await self.client.get('/api/chat/conversations')).json()['conversations'], [])
             self.assertEqual((await self.client.get(f'/api/chat/conversations/{conversation_id}')).status_code, 404)
             forbidden = await self.client.put('/api/settings', json={
@@ -165,6 +183,8 @@ class MultiuserApiTest(unittest.TestCase):
             admin_settings['generation_model'] = 'test/admin-model'
             saved = await self.client.put('/api/settings', json=admin_settings)
             self.assertEqual(saved.status_code, 200, saved.text)
+            plugin_saved = await self.client.put('/api/chunk-plugins', json={'plugin': 'local'})
+            self.assertEqual(plugin_saved.status_code, 200, plugin_saved.text)
             admin_settings['embedding_model'] = 'test/different-embedding'
             self.assertEqual((await self.client.put('/api/settings', json=admin_settings)).status_code, 422)
             await self.client.post('/api/auth/logout')
@@ -172,6 +192,9 @@ class MultiuserApiTest(unittest.TestCase):
             visible = (await self.client.get('/api/settings')).json()
             self.assertEqual(visible['generation_model'], 'test/admin-model')
             self.assertEqual(visible['embedding_model'], 'baai/bge-m3')
+            plugin_state = (await self.client.get('/api/chunk-plugins')).json()
+            self.assertEqual(plugin_state['selected'], 'local')
+            self.assertFalse(plugin_state['can_edit'])
         asyncio.run(check())
 
     def test_profile_without_key_cannot_call_routerai(self):
@@ -191,31 +214,40 @@ class MultiuserApiTest(unittest.TestCase):
 
         owner = get_or_create('IndexOwner')
         other = get_or_create('IndexViewer')
-        finished = threading.Event()
+        started = threading.Event()
+        release = threading.Event()
         observed = {}
 
         def fake_index(*_args, **_kwargs):
+            started.set()
+            if not release.wait(3):
+                raise AssertionError('Тест не освободил фоновую задачу.')
             observed.update(user_id=current_user_id(), key=api_key(), version=current_key_version())
-            finished.set()
             return {'status': 'indexed', 'expenses': {'cost_rub': '0.125', 'unknown': 0}}
 
         with indexing._job_lock:
             indexing._job.clear()
             indexing._job.update(state='idle')
+        from src import service
+        service._store_user_api_key(owner['id'], 'index-owner-original-key')
+        original_version = key_version(owner['id'])
         with patch('src.indexing.index_document', side_effect=fake_index):
-            token = set_user_id(owner['id'], 'index-owner-key', 'key-version-snapshot')
+            token = set_user_id(owner['id'], api_key(owner['id']), original_version)
             try:
                 indexing.start_job('shared-document')
             finally:
                 reset_user_id(token)
-
-            self.assertTrue(finished.wait(3), 'Фоновая задача не завершилась.')
+            self.assertTrue(started.wait(3), 'Фоновая задача не стартовала.')
+            service._store_user_api_key(owner['id'], 'index-owner-rotated-key')
+            self.assertNotEqual(key_version(owner['id']), original_version)
+            release.set()
             deadline = time.monotonic() + 3
             while indexing.job_status(owner['id'])['state'] == 'running' and time.monotonic() < deadline:
                 time.sleep(0.01)
 
-        self.assertEqual(observed, {'user_id': owner['id'], 'key': 'index-owner-key',
-                                    'version': 'key-version-snapshot'})
+        self.assertEqual(observed, {'user_id': owner['id'], 'key': 'index-owner-original-key',
+                                    'version': original_version})
+        self.assertEqual(api_key(owner['id']), 'index-owner-rotated-key')
         self.assertEqual(indexing.job_status(owner['id'])['result']['expenses']['cost_rub'], '0.125')
         viewer_status = indexing.job_status(other['id'])
         self.assertNotIn('expenses', viewer_status['result'])
