@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from dotenv import dotenv_values, set_key, unset_key
 import portalocker
 from src.database import ROOT, ENV_PATH, Session, User
+from src.user_repository import key_version
 from src.repository import Repository
 from src import routerai
 from src.request_context import current_user_id, current_api_key_snapshot, has_api_key_snapshot
@@ -39,7 +40,17 @@ def api_key(user_id=None):
     if user_id is None and has_api_key_snapshot():
         return current_api_key_snapshot()
     owner_id = user_id if user_id is not None else current_user_id()
-    return dotenv_values(ENV_PATH, encoding='utf-8-sig').get(_key_name(owner_id))
+    return user_credentials(owner_id)[0]
+
+
+def user_credentials(user_id):
+    """Возвращает ключ и его версию как согласованный снимок для запроса."""
+    lock_path = ENV_PATH.with_name(ENV_PATH.name + '.lock')
+    ENV_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with portalocker.Lock(str(lock_path), mode='a', timeout=15):
+        key = dotenv_values(ENV_PATH, encoding='utf-8-sig').get(_key_name(user_id))
+        version = key_version(user_id)
+        return key, version
 
 
 def _store_user_api_key(user_id, value):
@@ -77,11 +88,11 @@ def migrate_legacy_api_key():
             admin_key = legacy
         if legacy:
             unset_key(str(ENV_PATH), 'ROUTERAI_API_KEY', encoding='utf-8-sig')
-    if admin_key:
-        with Session.begin() as session:
-            admin = session.get(User, 1)
-            if admin and not admin.api_key_version:
-                admin.api_key_version = str(uuid.uuid4())
+        if admin_key:
+            with Session.begin() as session:
+                admin = session.get(User, 1)
+                if admin and not admin.api_key_version:
+                    admin.api_key_version = str(uuid.uuid4())
 
 
 def allowed_base_urls():

@@ -336,6 +336,58 @@ class MultiuserApiTest(unittest.TestCase):
             indexing._job.clear()
             indexing._job.update(state='idle')
 
+    def test_key_and_version_are_read_as_one_snapshot_during_rotation(self):
+        from src.user_repository import get_or_create
+
+        owner = get_or_create('CredentialSnapshotOwner')
+        service._store_user_api_key(owner['id'], 'snapshot-old-key')
+        old_version = key_version(owner['id'])
+        written = threading.Event()
+        release_writer = threading.Event()
+        reader_finished = threading.Event()
+        original_set_key = service.set_key
+        observed = {}
+        errors = []
+
+        def pause_after_file_write(*args, **kwargs):
+            result = original_set_key(*args, **kwargs)
+            if len(args) > 1 and args[1] == service._key_name(owner['id']):
+                written.set()
+                if not release_writer.wait(5):
+                    raise AssertionError('Тест не освободил запись нового ключа.')
+            return result
+
+        def rotate_key():
+            try:
+                service._store_user_api_key(owner['id'], 'snapshot-new-key')
+            except Exception as exc:
+                errors.append(exc)
+
+        def read_credentials():
+            try:
+                observed['credentials'] = service.user_credentials(owner['id'])
+            except Exception as exc:
+                errors.append(exc)
+            finally:
+                reader_finished.set()
+
+        with patch('src.service.set_key', side_effect=pause_after_file_write):
+            writer = threading.Thread(target=rotate_key)
+            writer.start()
+            self.assertTrue(written.wait(3), 'Запись ключа не дошла до точки синхронизации.')
+            reader = threading.Thread(target=read_credentials)
+            reader.start()
+            self.assertFalse(reader_finished.wait(0.1), 'Чтение обошло блокировку смены ключа.')
+            release_writer.set()
+            writer.join(3)
+            reader.join(3)
+
+        self.assertFalse(writer.is_alive(), 'Поток смены ключа не завершился.')
+        self.assertFalse(reader.is_alive(), 'Поток чтения ключа не завершился.')
+        self.assertEqual(errors, [])
+        self.assertNotEqual(key_version(owner['id']), old_version)
+        self.assertEqual(observed['credentials'], ('snapshot-new-key', key_version(owner['id'])))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from src import chat_repository
 from src.database import ROOT, Setting, engine
 from sqlalchemy import select
-from src.service import Settings, settings, save, test_call, repo, migrate_legacy_api_key, api_key
+from src.service import Settings, settings, save, test_call, repo, migrate_legacy_api_key, user_credentials
 from src import user_repository
 from src.request_context import set_user_id, reset_user_id
 
@@ -81,8 +81,8 @@ async def require_session(request: Request, call_next):
         if user is None:
             return JSONResponse({'detail': 'Войдите по никнейму, чтобы продолжить.'}, status_code=401)
         request.state.user = user
-        context_token = set_user_id(user['id'], api_key(user['id']),
-                                    user_repository.key_version(user['id']))
+        key, key_version = user_credentials(user['id'])
+        context_token = set_user_id(user['id'], key, key_version)
         try:
             return await call_next(request)
         finally:
