@@ -84,6 +84,13 @@ class MultiuserMigrationTest(unittest.TestCase):
     def test_nickname_normalization_and_admin_name(self):
         self.assertEqual(normalize_nickname('  Admin  '), ('Admin', 'admin'))
         self.assertEqual(get_or_create('ADMIN')['id'], 1)
+        composed = get_or_create('José')
+        decomposed = get_or_create('Jose\u0301')
+        casefolded = get_or_create('josé')
+        self.assertEqual(composed['id'], decomposed['id'])
+        self.assertEqual(composed['id'], casefolded['id'])
+        self.assertEqual(composed['nickname'], 'José')
+        self.assertEqual(normalize_nickname('a' * 32), ('a' * 32, 'a' * 32))
         user = get_or_create('User_01')
         self.assertFalse(user['is_admin'])
         self.assertEqual(get_or_create('user_01')['id'], user['id'])
@@ -92,6 +99,8 @@ class MultiuserMigrationTest(unittest.TestCase):
         self.assertEqual(len({item['id'] for item in concurrent}), 1)
         with self.assertRaises(InvalidNickname):
             normalize_nickname('two words')
+        with self.assertRaises(InvalidNickname):
+            normalize_nickname('a' * 33)
 
 
 if __name__ == '__main__':
