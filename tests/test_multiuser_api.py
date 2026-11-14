@@ -69,6 +69,7 @@ class MultiuserApiTest(unittest.TestCase):
     async def login(self, nickname):
         response = await self.client.post('/api/auth/login', json={'nickname': nickname})
         self.assertEqual(response.status_code, 200, response.text)
+        self.last_login_response = response
         return response.json()['user']
 
     def test_login_logout_cookie_and_api_gate(self):
@@ -84,6 +85,11 @@ class MultiuserApiTest(unittest.TestCase):
                 self.assertEqual(response.status_code, 401, path)
             user = await self.login('Alice')
             self.assertFalse(user['is_admin'])
+            cookie_header = self.last_login_response.headers['set-cookie'].lower()
+            self.assertIn('httponly', cookie_header)
+            self.assertIn('samesite=lax', cookie_header)
+            self.assertIn('max-age=2592000', cookie_header)
+            self.assertNotIn('; secure', cookie_header)
             shell = await self.client.get('/')
             self.assertEqual(shell.status_code, 200)
             for tab in ('Чат', 'База знаний', 'Тесты RAG', 'Настройки'):
@@ -103,6 +109,11 @@ class MultiuserApiTest(unittest.TestCase):
             self.assertEqual((await self.client.get('/api/settings')).status_code, 401)
             returned_to_login = await self.client.get('/')
             self.assertIn('id="login-form"', returned_to_login.text)
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),
+                                         base_url='https://testserver') as https_client:
+                secure_login = await https_client.post('/api/auth/login', json={'nickname': 'HttpsCookieUser'})
+            self.assertEqual(secure_login.status_code, 200)
+            self.assertIn('; secure', secure_login.headers['set-cookie'].lower())
         asyncio.run(check())
 
     def test_personal_settings_and_conversation_are_isolated(self):
