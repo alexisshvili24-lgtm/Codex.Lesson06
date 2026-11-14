@@ -187,7 +187,8 @@ def test_provider(kind: str):
 
 @app.get('/api/events')
 def get_events():
-    return {'events': repo.events(), 'costs': repo.costs()}
+    return {'events': repo.events(), 'costs': repo.costs(),
+            'costs_by_key_version': repo.costs_by_key_version()}
 @app.get('/api/documents')
 def documents_list():
     from src.document_repository import list_documents

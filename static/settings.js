@@ -73,6 +73,36 @@ async function loadEvents() {
   const data = await api('/api/events');
   const c = data.costs;
   document.querySelector('#costs').textContent = `Всего: ${rubles(c.total)} · embeddings: ${rubles(c.embedding)} · генерация: ${rubles(c.generation)} · вызовов: ${c.calls} · без стоимости: ${c.unknown}`;
+  const versionList = document.querySelector('#cost-version-list');
+  versionList.replaceChildren();
+  const versions = data.costs_by_key_version || [];
+  if (!versions.length) {
+    const empty = document.createElement('p');
+    empty.textContent = 'Платных вызовов пока нет.';
+    versionList.append(empty);
+  }
+  for (const version of versions) {
+    const item = document.createElement('details');
+    const summary = document.createElement('summary');
+    const label = version.key_version_id
+      ? `Версия ключа ${version.key_version_id.slice(0, 8)}`
+      : 'Исторические вызовы (версия ключа неизвестна)';
+    summary.textContent = `${label} · ${rubles(version.total)} · вызовов: ${version.calls}`;
+    const costs = document.createElement('p');
+    costs.textContent = `Embeddings: ${rubles(version.embedding)} · генерация: ${rubles(version.generation)} · без стоимости: ${version.unknown}`;
+    item.append(summary, costs);
+    if (version.key_version_id) {
+      const id = document.createElement('p');
+      const code = document.createElement('code');
+      code.textContent = version.key_version_id;
+      id.append('ID версии: ', code);
+      item.append(id);
+    }
+    const dates = document.createElement('p');
+    dates.textContent = `Период: ${version.first_seen} — ${version.last_seen}`;
+    item.append(dates);
+    versionList.append(item);
+  }
   const list = document.querySelector('#event-list');
   list.replaceChildren();
   for (const event of data.events) {

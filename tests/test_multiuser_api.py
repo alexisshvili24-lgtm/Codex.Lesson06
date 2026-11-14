@@ -529,6 +529,49 @@ class MultiuserApiTest(unittest.TestCase):
             event_ids[1]: ('ok', owner['id'], version),
         })
 
+    def test_expenses_are_grouped_by_key_version_and_scoped_to_profile(self):
+        from datetime import datetime, timezone
+
+        async def check():
+            alice = await self.login('ExpenseVersionAlice')
+            version_ids = []
+            for key, amount in (('expense-key-one', Decimal('0.125')),
+                                ('expense-key-two', Decimal('0.25'))):
+                service._store_user_api_key(alice['id'], key)
+                version = key_version(alice['id'])
+                version_ids.append(version)
+                context_token = set_user_id(alice['id'], key, version)
+                try:
+                    repo.log('version-cost-' + uuid.uuid4().hex, 'generation', 'ok', 'mock-model',
+                             cost=amount, payload={'test': 'version breakdown'})
+                finally:
+                    reset_user_id(context_token)
+
+            with Session.begin() as session:
+                historical = Event(request_id='historical-cost-' + uuid.uuid4().hex,
+                                   created_at=datetime.now(timezone.utc).isoformat(),
+                                   operation='generation', status='ok', model='legacy-model',
+                                   duration_ms=1, cost_rub='0.05', payload='{}')
+                session.add(historical)
+                session.flush()
+                session.add(EventOwner(event_id=historical.id, user_id=alice['id'], key_version_id=None))
+
+            events = (await self.client.get('/api/events')).json()
+            by_version = {item['key_version_id']: item for item in events['costs_by_key_version']}
+            self.assertEqual(by_version[version_ids[0]]['generation'], '0.125')
+            self.assertEqual(by_version[version_ids[1]]['generation'], '0.25')
+            self.assertEqual(by_version[None]['generation'], '0.05')
+            self.assertEqual(by_version[None]['key_version_known'], False)
+            self.assertEqual(events['costs']['generation'], '0.425')
+
+            await self.client.post('/api/auth/logout')
+            await self.login('ExpenseVersionBob')
+            bob_events = (await self.client.get('/api/events')).json()
+            self.assertEqual(bob_events['costs_by_key_version'], [])
+            self.assertEqual(bob_events['costs']['generation'], '0')
+
+        asyncio.run(check())
+
 
 if __name__ == '__main__':
     unittest.main()

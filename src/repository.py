@@ -72,6 +72,41 @@ class Repository:
                     totals[row.operation] += Decimal(row.cost_rub)
             return {'embedding': str(totals['embedding']), 'generation': str(totals['generation']),
                     'total': str(sum(totals.values())), 'calls': len(rows), 'unknown': unknown}
+
+    def costs_by_key_version(self, user_id=None):
+        owner_id = user_id if user_id is not None else current_user_id()
+        with Session() as session:
+            rows = session.execute(select(Event, EventOwner.key_version_id).join(EventOwner).where(
+                EventOwner.user_id == owner_id, Event.operation.in_(['embedding', 'generation']),
+                Event.status != 'not_sent').order_by(Event.id)).all()
+        groups = {}
+        for event, key_version_id in rows:
+            key_version_id = key_version_id or None
+            group = groups.setdefault(key_version_id, {
+                'key_version_id': key_version_id,
+                'key_version_known': key_version_id is not None,
+                'embedding': Decimal(0),
+                'generation': Decimal(0),
+                'calls': 0,
+                'unknown': 0,
+                'first_seen': event.created_at,
+                'last_seen': event.created_at,
+            })
+            group['calls'] += 1
+            group['first_seen'] = min(group['first_seen'], event.created_at)
+            group['last_seen'] = max(group['last_seen'], event.created_at)
+            if event.cost_rub is None:
+                group['unknown'] += 1
+            else:
+                group[event.operation] += Decimal(event.cost_rub)
+        result = []
+        for group in groups.values():
+            group['total'] = str(group['embedding'] + group['generation'])
+            group['embedding'] = str(group['embedding'])
+            group['generation'] = str(group['generation'])
+            result.append(group)
+        return sorted(result, key=lambda group: (group['last_seen'], group['key_version_id'] or ''), reverse=True)
+
     def embedding_group_cost(self, group_id, user_id=None):
         owner_id = user_id if user_id is not None else current_user_id()
         with Session() as session:
