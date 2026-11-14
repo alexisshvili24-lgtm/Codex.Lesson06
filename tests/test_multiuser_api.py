@@ -84,6 +84,7 @@ class MultiuserApiTest(unittest.TestCase):
                 self.assertEqual(response.status_code, 401, path)
             user = await self.login('Alice')
             self.assertFalse(user['is_admin'])
+            self.assertEqual((await self.client.get('/api/auth/me')).json()['user']['id'], user['id'])
             cookie = self.client.cookies.get('git_support_session')
             self.assertIsNotNone(cookie)
             with Session() as session:
@@ -92,6 +93,7 @@ class MultiuserApiTest(unittest.TestCase):
             self.assertIn(64, [len(token_hash) for token_hash in hashes])
             response = await self.client.post('/api/auth/logout')
             self.assertEqual(response.status_code, 204)
+            self.assertIsNone((await self.client.get('/api/auth/me')).json()['user'])
             self.assertEqual((await self.client.get('/api/settings')).status_code, 401)
         asyncio.run(check())
 
@@ -160,6 +162,18 @@ class MultiuserApiTest(unittest.TestCase):
             self.assertEqual(forbidden.status_code, 403)
             plugin_forbidden = await self.client.put('/api/chunk-plugins', json={'plugin': 'local'})
             self.assertEqual(plugin_forbidden.status_code, 403)
+
+            await self.client.post('/api/auth/logout')
+            alice_again = await self.login('aLiCe')
+            self.assertEqual(alice_again['id'], alice['id'])
+            restored = (await self.client.get('/api/settings')).json()
+            self.assertEqual(restored['system_prompt'], 'Личный промпт Alice')
+            self.assertTrue(restored['key_configured'])
+            restored_events = (await self.client.get('/api/events')).json()
+            self.assertEqual(restored_events['costs']['generation'], '1.23456789')
+            self.assertNotIn('bob-paid-call', {item['request_id'] for item in restored_events['events']})
+            restored_conversations = (await self.client.get('/api/chat/conversations')).json()['conversations']
+            self.assertIn(conversation_id, {item['id'] for item in restored_conversations})
         asyncio.run(check())
 
     def test_shared_document_api_is_available_and_admin_is_case_insensitive(self):
