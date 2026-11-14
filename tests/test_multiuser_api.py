@@ -261,7 +261,15 @@ class MultiuserApiTest(unittest.TestCase):
 
         asyncio.run(check())
 
-    def test_shared_document_api_is_available_and_admin_is_case_insensitive(self):
+    def test_any_profile_can_manage_shared_documents_and_admin_is_case_insensitive(self):
+        initial_shared_settings = service.settings(1)
+        initial_plugin = repo.settings(1).get('chunking_plugin', 'local')
+        self.addCleanup(repo.save_settings, {
+            'base_url': initial_shared_settings['base_url'],
+            'generation_model': initial_shared_settings['generation_model'],
+            'chunking_plugin': initial_plugin,
+        }, user_id=1)
+
         async def check():
             await self.login('User_1')
             self.assertEqual((await self.client.get('/api/documents')).status_code, 200)
@@ -271,10 +279,22 @@ class MultiuserApiTest(unittest.TestCase):
             self.assertEqual(upload.status_code, 200, upload.text)
             shared_document_id = upload.json()['id']
             await self.client.post('/api/auth/logout')
+            await self.login('User_2')
+            shared_detail = await self.client.get(f'/api/documents/{shared_document_id}')
+            self.assertEqual(shared_detail.status_code, 200)
+            replacement = await self.client.put(f'/api/documents/{shared_document_id}', data={
+                'title': 'Общий материал обновлён пользователем 2',
+                'source_type': 'official', 'language': 'ru'
+            }, files={'file': ('shared-replacement.md', '# Общий материал\n\nНовая редакция от пользователя 2.', 'text/markdown')})
+            self.assertEqual(replacement.status_code, 200, replacement.text)
+            self.assertEqual(replacement.json()['title'], 'Общий материал обновлён пользователем 2')
+            await self.client.post('/api/auth/logout')
             admin = await self.login('ADMIN')
             visible_documents = await self.client.get('/api/documents')
             self.assertEqual(visible_documents.status_code, 200)
             self.assertIn(shared_document_id, {item['id'] for item in visible_documents.json()})
+            self.assertEqual((await self.client.get(f'/api/documents/{shared_document_id}')).json()['title'],
+                             'Общий материал обновлён пользователем 2')
             self.assertTrue(admin['is_admin'])
             admin_settings = (await self.client.get('/api/settings')).json()
             self.assertTrue(admin_settings['is_admin'])
@@ -297,6 +317,13 @@ class MultiuserApiTest(unittest.TestCase):
             plugin_state = (await self.client.get('/api/chunk-plugins')).json()
             self.assertEqual(plugin_state['selected'], 'local')
             self.assertFalse(plugin_state['can_edit'])
+            await self.client.post('/api/auth/logout')
+            await self.login('User_1')
+            deleted = await self.client.delete(f'/api/documents/{shared_document_id}')
+            self.assertEqual(deleted.status_code, 200, deleted.text)
+            await self.client.post('/api/auth/logout')
+            await self.login('User_2')
+            self.assertEqual((await self.client.get(f'/api/documents/{shared_document_id}')).status_code, 404)
         asyncio.run(check())
 
     def test_profile_without_key_cannot_call_routerai(self):
