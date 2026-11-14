@@ -2,6 +2,7 @@
 import time
 import uuid
 import os
+from urllib.parse import urlsplit, urlunsplit
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from dotenv import dotenv_values, set_key, unset_key
 import portalocker
@@ -97,9 +98,32 @@ def migrate_legacy_api_key():
 
 def allowed_base_urls():
     config = dotenv_values(ENV_PATH, encoding='utf-8-sig')
-    raw = os.environ.get('ROUTERAI_ALLOWED_BASE_URLS') or config.get('ROUTERAI_ALLOWED_BASE_URLS', '')
-    values = [part.strip().rstrip('/') for part in raw.split(',') if part.strip()]
-    return set(values or [DEFAULTS['base_url']])
+    raw = os.environ.get('ROUTERAI_ALLOWED_BASE_URLS')
+    if raw is None:
+        raw = config.get('ROUTERAI_ALLOWED_BASE_URLS', '')
+    values = [part.strip() for part in raw.split(',') if part.strip()] if raw else [DEFAULTS['base_url']]
+    return {normalized for value in values
+            if (normalized := _normalize_https_base_url(value)) is not None}
+
+
+def _normalize_https_base_url(value):
+    """Нормализует разрешённый адрес и отбрасывает небезопасную конфигурацию."""
+    if not isinstance(value, str) or not value or any(char.isspace() for char in value):
+        return None
+    try:
+        parsed = urlsplit(value)
+        if (parsed.scheme.lower() != 'https' or not parsed.hostname or parsed.username is not None
+                or parsed.password is not None or parsed.query or parsed.fragment):
+            return None
+        port = parsed.port
+    except ValueError:
+        return None
+    host = parsed.hostname.lower()
+    if ':' in host and not host.startswith('['):
+        host = f'[{host}]'
+    netloc = host + (f':{port}' if port is not None and port != 443 else '')
+    path = parsed.path.rstrip('/')
+    return urlunsplit(('https', netloc, path, '', ''))
 
 
 def settings(user_id=None):

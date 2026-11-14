@@ -1,17 +1,39 @@
 ﻿"""Проверки защиты ключа при обращениях к RouterAI."""
 import unittest
+import os
 from unittest.mock import patch
 from urllib.request import Request
 
 from src import routerai
+from src.service import allowed_base_urls
 
 
 class RouterAISecurityTest(unittest.TestCase):
+    def test_configured_allowlist_keeps_only_safe_https_urls(self):
+        configured = ','.join((
+            'https://Trusted.example/api/v1/',
+            'http://insecure.example/api/v1',
+            'https://user:password@credentialed.example/api/v1',
+            'https://query.example/api/v1?redirect=http://attacker.example',
+            'https://fragment.example/api/v1#token',
+        ))
+        with patch.dict(os.environ, {'ROUTERAI_ALLOWED_BASE_URLS': configured}):
+            self.assertEqual(allowed_base_urls(), {'https://trusted.example/api/v1'})
+
     def test_disallowed_base_is_rejected_before_network_call(self):
         with patch('src.service.allowed_base_urls', return_value={'https://trusted.example/api/v1'}), \
              patch.object(routerai._opener, 'open') as open_request:
             with self.assertRaises(routerai.ProviderError):
                 routerai.request_json('https://attacker.example/api/v1', 'secret-value', '/models')
+        open_request.assert_not_called()
+
+    def test_http_and_credentialed_base_are_rejected_before_network_call(self):
+        with patch('src.service.allowed_base_urls', return_value={'https://trusted.example/api/v1'}), \
+             patch.object(routerai._opener, 'open') as open_request:
+            for base in ('http://trusted.example/api/v1',
+                         'https://user:secret@trusted.example/api/v1'):
+                with self.subTest(base=base), self.assertRaises(routerai.ProviderError):
+                    routerai.request_json(base, 'secret-value', '/models')
         open_request.assert_not_called()
 
     def test_redirect_handler_refuses_forwarding_authorization(self):
