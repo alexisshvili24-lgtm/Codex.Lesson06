@@ -211,6 +211,70 @@ class MultiuserApiTest(unittest.TestCase):
             request_json.assert_not_called()
         asyncio.run(check())
 
+    def test_indexed_document_is_searchable_from_another_profile(self):
+        from src.documents import prepare
+        from src.document_repository import write_document
+        from src.chunk_store import snapshot, save_run
+        from src.indexing import index_document
+        from src.index_repository import active
+        from src.search_service import search_documents
+        from src.user_repository import get_or_create
+        from src.database import Session, Event, EventOwner
+        from src.service import repo
+        from decimal import Decimal
+        from sqlalchemy import select
+        import hashlib
+
+        owner = get_or_create('SharedIndexOwner')
+        viewer = get_or_create('SharedIndexViewer')
+        document = prepare('shared-index.md', b'# Shared index\n\nA shared active index lets every profile search the same uploaded material.',
+                           {'title': 'Shared index', 'language': 'en', 'source_type': 'official'})
+        write_document(document, str(uuid.uuid4()))
+        source = snapshot(document['id'])
+        text = 'A shared active index lets every profile search the same uploaded material.'
+        chunk_id = hashlib.sha256(text.encode('utf-8')).hexdigest()
+        chunk = {'chunk_id': chunk_id, 'text': text, 'tokens': 13,
+                 'text_hash': hashlib.sha256(text.encode('utf-8')).hexdigest(),
+                 'document_id': document['id'], 'source_file': 'shared-index.md', 'section': 'Shared index'}
+        save_run(document['id'], source['revision'], {'chunks': [chunk], 'warnings': []}, str(uuid.uuid4()))
+        qdrant_path = ROOT / '.tmp' / ('shared-index-' + uuid.uuid4().hex)
+
+        def paid_test_embedder(texts, config, group_id=None):
+            repo.log(str(uuid.uuid4()), 'embedding', 'ok', 'baai/bge-m3', cost=Decimal('0.5'),
+                     payload={'group_id': group_id, 'count': len(texts)})
+            return [[1.0, 0.0] for _ in texts]
+
+        owner_context = set_user_id(owner['id'], 'owner-index-key', 'owner-index-version')
+        try:
+            with patch('src.indexing.embed_texts', new=paid_test_embedder):
+                result = index_document(document['id'], path=qdrant_path, embedder=paid_test_embedder)
+        finally:
+            reset_user_id(owner_context)
+        self.assertEqual(result['status'], 'indexed')
+        self.assertEqual(result['expenses']['cost_rub'], '0.5')
+        self.assertEqual(repo.costs(owner['id'])['embedding'], '0.5')
+        self.assertEqual(repo.costs(viewer['id'])['embedding'], '0')
+        with Session() as session:
+            event = session.scalar(select(Event).join(EventOwner).where(
+                EventOwner.user_id == owner['id'], Event.operation == 'embedding'))
+            self.assertIsNotNone(event)
+            mapping = session.get(EventOwner, event.id)
+            self.assertEqual(mapping.key_version_id, 'owner-index-version')
+        generation = active(document['id'])
+        self.assertIsNotNone(generation)
+
+        def search_embedder(texts, config):
+            return [[1.0, 0.0] for _ in texts]
+
+        viewer_context = set_user_id(viewer['id'], 'viewer-index-key', 'viewer-index-version')
+        try:
+            with patch('src.search_service.active_generations', return_value=[generation]):
+                found = search_documents('How do profiles search shared uploaded material?',
+                                         embedder=search_embedder, path=qdrant_path)
+        finally:
+            reset_user_id(viewer_context)
+        self.assertIn(chunk_id, {item['chunk_id'] for item in found['rrf_candidates']})
+
     def test_background_index_keeps_initiator_credentials_and_hides_costs_from_others(self):
         from src import indexing
         from src.user_repository import get_or_create
