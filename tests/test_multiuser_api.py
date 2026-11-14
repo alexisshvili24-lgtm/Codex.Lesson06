@@ -84,6 +84,12 @@ class MultiuserApiTest(unittest.TestCase):
                 self.assertEqual(response.status_code, 401, path)
             user = await self.login('Alice')
             self.assertFalse(user['is_admin'])
+            shell = await self.client.get('/')
+            self.assertEqual(shell.status_code, 200)
+            for tab in ('Чат', 'База знаний', 'Тесты RAG', 'Настройки'):
+                self.assertIn(tab, shell.text)
+            self.assertIn('id="current-user"', shell.text)
+            self.assertIn('id="logout-button"', shell.text)
             self.assertEqual((await self.client.get('/api/auth/me')).json()['user']['id'], user['id'])
             cookie = self.client.cookies.get('git_support_session')
             self.assertIsNotNone(cookie)
@@ -95,6 +101,8 @@ class MultiuserApiTest(unittest.TestCase):
             self.assertEqual(response.status_code, 204)
             self.assertIsNone((await self.client.get('/api/auth/me')).json()['user'])
             self.assertEqual((await self.client.get('/api/settings')).status_code, 401)
+            returned_to_login = await self.client.get('/')
+            self.assertIn('id="login-form"', returned_to_login.text)
         asyncio.run(check())
 
     def test_personal_settings_and_conversation_are_isolated(self):
