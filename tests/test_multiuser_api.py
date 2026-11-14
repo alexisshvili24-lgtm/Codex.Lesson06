@@ -469,6 +469,66 @@ class MultiuserApiTest(unittest.TestCase):
         self.assertNotEqual(key_version(owner['id']), old_version)
         self.assertEqual(observed['credentials'], ('snapshot-new-key', key_version(owner['id'])))
 
+    def test_generation_retries_and_cost_calls_keep_profile_snapshot(self):
+        from decimal import Decimal
+        from src import rag_answer
+        from src.user_repository import get_or_create
+
+        owner = get_or_create('GenerationRetryOwner')
+        service._store_user_api_key(owner['id'], 'generation-retry-stored-key')
+        version = key_version(owner['id'])
+        outputs = iter((('invalid', 'generation-1'), ('valid', 'generation-2')))
+        request_keys = []
+        cost_keys = []
+
+        def request_json(base, key, path, body=None):
+            request_keys.append((base, key, path))
+            content, generation_id = next(outputs)
+            return {'choices': [{'message': {'content': content}}]}, generation_id
+
+        def cost(base, key, generation_id):
+            cost_keys.append((base, key, generation_id))
+            return Decimal('0.125'), None
+
+        def validate(content):
+            if content != 'valid':
+                raise ValueError('Ответ не прошёл проверку.')
+            return content
+
+        config = {'base_url': 'https://router.example/api/v1', 'generation_model': 'mock-model'}
+        body = {'messages': [{'role': 'user', 'content': 'Вопрос'}]}
+        context_token = set_user_id(owner['id'], 'generation-retry-snapshot-key', version)
+        try:
+            with patch('src.rag_answer.routerai.request_json', side_effect=request_json), \
+                    patch('src.rag_answer.routerai.cost', side_effect=cost), \
+                    patch.object(repo, 'log', wraps=repo.log) as log_spy:
+                result = rag_answer.generate_structured(
+                    body, config, validate, group_id='generation-retry-group', stage='answer'
+                )
+        finally:
+            reset_user_id(context_token)
+
+        self.assertEqual(result, 'valid')
+        self.assertEqual(request_keys, [
+            (config['base_url'], 'generation-retry-snapshot-key', '/chat/completions'),
+            (config['base_url'], 'generation-retry-snapshot-key', '/chat/completions'),
+        ])
+        self.assertEqual(cost_keys, [
+            (config['base_url'], 'generation-retry-snapshot-key', 'generation-1'),
+            (config['base_url'], 'generation-retry-snapshot-key', 'generation-2'),
+        ])
+        event_ids = [call.args[0] for call in log_spy.call_args_list]
+        with Session() as session:
+            rows = session.execute(
+                select(Event.request_id, Event.status, EventOwner.user_id, EventOwner.key_version_id)
+                .join(EventOwner, EventOwner.event_id == Event.id)
+                .where(Event.request_id.in_(event_ids))
+            ).all()
+        self.assertEqual({row.request_id: (row.status, row.user_id, row.key_version_id) for row in rows}, {
+            event_ids[0]: ('error', owner['id'], version),
+            event_ids[1]: ('ok', owner['id'], version),
+        })
+
 
 if __name__ == '__main__':
     unittest.main()
