@@ -75,6 +75,9 @@ class MultiuserApiTest(unittest.TestCase):
     def test_login_logout_cookie_and_api_gate(self):
         async def check():
             self.assertIn('Вход'.encode(), (await self.client.get('/')).content)
+            self.assertEqual((await self.client.get('/health')).status_code, 200)
+            self.assertEqual((await self.client.get('/static/login.js')).status_code, 200)
+            self.assertEqual((await self.client.get('/api/auth/me')).json(), {'user': None})
             self.assertEqual((await self.client.post('/api/auth/logout')).status_code, 401)
             for method, path in (
                 ('GET', '/api/settings'), ('GET', '/api/events'), ('GET', '/api/documents'),
