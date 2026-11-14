@@ -642,6 +642,56 @@ class MultiuserApiTest(unittest.TestCase):
 
         asyncio.run(check())
 
+    def test_legacy_key_migration_recovers_from_interrupted_file_and_database_steps(self):
+        from src.database import User
+
+        previous = dotenv_values(ENV_PATH, encoding='utf-8-sig')
+        previous_admin_key = previous.get(service._key_name(1))
+        previous_legacy_key = previous.get('ROUTERAI_API_KEY')
+        previous_version = key_version(1)
+        try:
+            set_key(str(ENV_PATH), 'ROUTERAI_API_KEY', 'legacy-recovery-test-key',
+                    quote_mode='always', encoding='utf-8-sig')
+            service.unset_key(str(ENV_PATH), service._key_name(1), encoding='utf-8-sig')
+            with Session.begin() as session:
+                session.get(User, 1).api_key_version = None
+
+            with patch('src.service.unset_key', side_effect=OSError('simulated env replace interruption')):
+                with self.assertRaises(OSError):
+                    service.migrate_legacy_api_key()
+            after_copy = dotenv_values(ENV_PATH, encoding='utf-8-sig')
+            self.assertEqual(after_copy['ROUTERAI_API_KEY'], 'legacy-recovery-test-key')
+            self.assertEqual(after_copy[service._key_name(1)], 'legacy-recovery-test-key')
+
+            with patch('src.service.Session.begin', side_effect=OSError('simulated database interruption')):
+                with self.assertRaises(OSError):
+                    service.migrate_legacy_api_key()
+            after_remove = dotenv_values(ENV_PATH, encoding='utf-8-sig')
+            self.assertNotIn('ROUTERAI_API_KEY', after_remove)
+            self.assertEqual(after_remove[service._key_name(1)], 'legacy-recovery-test-key')
+            self.assertIsNone(key_version(1))
+
+            service.migrate_legacy_api_key()
+            completed = dotenv_values(ENV_PATH, encoding='utf-8-sig')
+            self.assertNotIn('ROUTERAI_API_KEY', completed)
+            self.assertEqual(completed[service._key_name(1)], 'legacy-recovery-test-key')
+            self.assertTrue(key_version(1))
+        finally:
+            current_values = dotenv_values(ENV_PATH, encoding='utf-8-sig')
+            if previous_admin_key is None and service._key_name(1) in current_values:
+                service.unset_key(str(ENV_PATH), service._key_name(1), encoding='utf-8-sig')
+            else:
+                if previous_admin_key is not None:
+                    service.set_key(str(ENV_PATH), service._key_name(1), previous_admin_key,
+                                    quote_mode='always', encoding='utf-8-sig')
+            if previous_legacy_key is None and 'ROUTERAI_API_KEY' in current_values:
+                service.unset_key(str(ENV_PATH), 'ROUTERAI_API_KEY', encoding='utf-8-sig')
+            elif previous_legacy_key is not None:
+                service.set_key(str(ENV_PATH), 'ROUTERAI_API_KEY', previous_legacy_key,
+                                quote_mode='always', encoding='utf-8-sig')
+            with Session.begin() as session:
+                session.get(User, 1).api_key_version = previous_version
+
 
 if __name__ == '__main__':
     unittest.main()
