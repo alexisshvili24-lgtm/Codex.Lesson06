@@ -176,6 +176,68 @@ class MultiuserApiTest(unittest.TestCase):
             self.assertIn(conversation_id, {item['id'] for item in restored_conversations})
         asyncio.run(check())
 
+    def test_chat_uses_profile_key_and_records_cost_in_profile(self):
+        from decimal import Decimal
+        from src.chat_context import SearchContext
+        from src.rag_answer import Answer
+
+        async def check():
+            alice = await self.login('ChatOwnerAlice')
+            alice_settings = (await self.client.get('/api/settings')).json()
+            alice_settings['api_key'] = 'chat-alice-key'
+            self.assertEqual((await self.client.put('/api/settings', json=alice_settings)).status_code, 200)
+            alice_version = key_version(alice['id'])
+            alice_conversation = (await self.client.post('/api/chat/conversations')).json()['id']
+            observed = []
+            request_id = 'chat-cost-' + str(uuid.uuid4())
+
+            def capture_context(*args, **kwargs):
+                observed.append(('context', current_user_id(), api_key(), current_key_version()))
+                question = args[2]
+                return SearchContext(summary='', search_query=question, context_query='',
+                                     search_groups=[[question, question]], evidence_types=['rule'])
+
+            def capture_search(*args, **kwargs):
+                return {'rrf': [], 'vector': [], 'bm25': []}
+
+            def capture_answer(*args, **kwargs):
+                observed.append(('answer', current_user_id(), api_key(), current_key_version()))
+                repo.log(request_id, 'generation', 'ok', 'mock-model', cost=Decimal('0.125'),
+                         payload={'stage': 'answer'})
+                return Answer(status='no_answer', answer='Нет подтверждения в источниках.',
+                              source_ids=[], missing_information=['В базе нет подтверждения.'])
+
+            with patch('src.rag_service.update_context', side_effect=capture_context), \
+                    patch('src.rag_service.search_documents', side_effect=capture_search), \
+                    patch('src.rag_service.generate_answer', side_effect=capture_answer):
+                response = await self.client.post('/api/chat', json={
+                    'question': 'Что подтверждено?', 'conversation_id': alice_conversation
+                })
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(observed, [
+                ('context', alice['id'], 'chat-alice-key', alice_version),
+                ('answer', alice['id'], 'chat-alice-key', alice_version),
+            ])
+            alice_events = (await self.client.get('/api/events')).json()
+            self.assertEqual(alice_events['costs']['generation'], '0.125')
+            with Session() as session:
+                event_id = session.scalar(select(Event.id).where(Event.request_id == request_id))
+                self.assertEqual(session.scalar(select(EventOwner.user_id).where(EventOwner.event_id == event_id)), alice['id'])
+                self.assertEqual(session.scalar(select(EventOwner.key_version_id).where(EventOwner.event_id == event_id)), alice_version)
+
+            await self.client.post('/api/auth/logout')
+            bob = await self.login('ChatOwnerBob')
+            bob_events = (await self.client.get('/api/events')).json()
+            self.assertEqual(bob_events['costs']['generation'], '0')
+            self.assertNotIn(request_id, {event['request_id'] for event in bob_events['events']})
+            self.assertEqual((await self.client.get(
+                f'/api/chat/conversations/{alice_conversation}'
+            )).status_code, 404)
+            self.assertEqual((await self.client.get('/api/chat/conversations')).json()['conversations'], [])
+            self.assertNotEqual(alice['id'], bob['id'])
+
+        asyncio.run(check())
+
     def test_shared_document_api_is_available_and_admin_is_case_insensitive(self):
         async def check():
             await self.login('User_1')
