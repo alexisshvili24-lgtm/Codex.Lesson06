@@ -29,6 +29,24 @@ jobs:
           python-version: '3.14'
       - name: Установить зависимости
         run: python -m pip install -r requirements.txt
+      - name: Подготовить токенизатор BGE-M3 для тестов
+        run: |
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          from urllib.request import urlopen
+
+          url = 'https://huggingface.co/BAAI/bge-m3/resolve/5617a9f61b028005a4858fdac845db406aefb181/tokenizer.json'
+          expected = '21106b6d7dab2952c1d496fb21d5dc9db75c28ed361a05f5020bbba27810dd08'
+          with urlopen(url, timeout=120) as response:
+              data = response.read()
+          actual = hashlib.sha256(data).hexdigest()
+          if actual != expected:
+              raise ValueError(f'Контрольная сумма токенизатора не совпала: {actual}')
+          target = Path('data/tokenizers/bge-m3-tokenizer.json')
+          target.parent.mkdir(parents=True, exist_ok=True)
+          target.write_bytes(data)
+          PY
       - name: Выполнить тесты
         run: python -m unittest discover -s tests
       - name: Определить SHA собранного коммита
