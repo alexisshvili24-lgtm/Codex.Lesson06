@@ -1,6 +1,6 @@
 ﻿from pathlib import Path
 import os
-from sqlalchemy import create_engine, event, String, Text, Integer, LargeBinary, ForeignKey
+from sqlalchemy import create_engine, event, String, Text, Integer, LargeBinary, ForeignKey, Boolean
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from dotenv import dotenv_values
 
@@ -105,3 +105,41 @@ class ChatTurn(Base):
     conversation_id: Mapped[str] = mapped_column(ForeignKey('chat_conversations.id'), primary_key=True)
     position: Mapped[int] = mapped_column(Integer, primary_key=True)
     event_id: Mapped[int] = mapped_column(ForeignKey('events.id'), unique=True)
+
+
+class User(Base):
+    __tablename__ = 'users'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    nickname: Mapped[str] = mapped_column(String(32))
+    nickname_normalized: Mapped[str] = mapped_column(String(96), unique=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    api_key_version: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[str] = mapped_column(String(40))
+
+
+class UserSession(Base):
+    __tablename__ = 'user_sessions'
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
+    created_at: Mapped[str] = mapped_column(String(40))
+    expires_at: Mapped[str] = mapped_column(String(40), index=True)
+
+
+class UserSetting(Base):
+    __tablename__ = 'user_settings'
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+
+
+class EventOwner(Base):
+    __tablename__ = 'event_owners'
+    event_id: Mapped[int] = mapped_column(ForeignKey('events.id', ondelete='CASCADE'), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)
+    key_version_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+
+class ConversationOwner(Base):
+    __tablename__ = 'conversation_owners'
+    conversation_id: Mapped[str] = mapped_column(ForeignKey('chat_conversations.id', ondelete='CASCADE'), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), index=True)

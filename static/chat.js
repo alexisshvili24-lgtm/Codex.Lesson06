@@ -126,6 +126,7 @@ function openChatSource(source) {
 
 async function chatRequest(path, options) {
   const response = await fetch('/api/chat' + path, options);
+  if (response.status === 401) { location.replace('/'); throw new Error('Сессия завершена. Войдите снова.'); }
   const data = await response.json();
   if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Запрос не выполнен.');
   return data;

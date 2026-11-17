@@ -1,30 +1,44 @@
 ﻿from contextlib import asynccontextmanager
 from pathlib import Path
+from hashlib import sha256
+import secrets
 import logging
 import os
 import re
 from urllib.parse import urlsplit
 from alembic import command
 from alembic.config import Config
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form, Query
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File, Form, Query
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from src import chat_repository
 from src.database import ROOT, Setting, engine
 from sqlalchemy import select
-from src.service import Settings, settings, save, test_call, repo
+from src.service import Settings, settings, save, test_call, repo, migrate_legacy_api_key, user_credentials
+from src import user_repository
+from src.request_context import set_user_id, reset_user_id
 
 @asynccontextmanager
 async def lifespan(app):
     config = Config()
     config.set_main_option('script_location', str(ROOT / 'migrations'))
     command.upgrade(config, 'head')
+    migrate_legacy_api_key()
     yield
 
 app = FastAPI(title='Git Support', lifespan=lifespan)
 logger = logging.getLogger(__name__)
 app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
+
+SESSION_COOKIE = 'git_support_session'
+
+
+def _session_identity(request: Request):
+    raw = request.cookies.get(SESSION_COOKIE)
+    if not raw:
+        return None
+    return user_repository.session_user(sha256(raw.encode('utf-8')).hexdigest())
 
 @app.middleware('http')
 async def local_origin(request: Request, call_next):
@@ -59,6 +73,56 @@ async def local_origin(request: Request, call_next):
         return JSONResponse({'detail': 'Недопустимый источник запроса'}, status_code=403)
     return await call_next(request)
 
+@app.middleware('http')
+async def require_session(request: Request, call_next):
+    path = request.url.path
+    if path.startswith('/api/') and path not in {'/api/auth/login', '/api/auth/me'}:
+        user = _session_identity(request)
+        if user is None:
+            return JSONResponse({'detail': 'Войдите по никнейму, чтобы продолжить.'}, status_code=401)
+        request.state.user = user
+        key, key_version = user_credentials(user['id'])
+        context_token = set_user_id(user['id'], key, key_version)
+        try:
+            return await call_next(request)
+        finally:
+            reset_user_id(context_token)
+    return await call_next(request)
+
+
+class LoginData(BaseModel):
+    nickname: str = Field(min_length=1, max_length=100)
+
+
+@app.post('/api/auth/login')
+def login(data: LoginData, request: Request, response: Response):
+    try:
+        user = user_repository.get_or_create(data.nickname)
+    except user_repository.InvalidNickname as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    token = secrets.token_urlsafe(32)
+    user_repository.create_session(sha256(token.encode('utf-8')).hexdigest(), user['id'])
+    response.set_cookie(SESSION_COOKIE, token, httponly=True, secure=request.url.scheme == 'https',
+                        samesite='lax', max_age=int(user_repository.SESSION_TTL.total_seconds()), path='/')
+    return {'user': user}
+
+
+@app.get('/api/auth/me')
+def auth_me(request: Request):
+    return {'user': _session_identity(request)}
+
+
+@app.post('/api/auth/logout', status_code=204)
+def logout(request: Request, response: Response):
+    raw = request.cookies.get(SESSION_COOKIE)
+    if raw:
+        user_repository.revoke_session(sha256(raw.encode('utf-8')).hexdigest())
+    response.delete_cookie(SESSION_COOKIE, path='/', httponly=True,
+                           secure=request.url.scheme == 'https', samesite='lax')
+    response.status_code = 204
+    return response
+
+
 @app.get('/health', include_in_schema=False)
 def health():
     try:
@@ -70,30 +134,44 @@ def health():
     return {'status': 'ok'}
 
 @app.get('/', include_in_schema=False)
-def index():
+def index(request: Request):
+    if _session_identity(request) is None:
+        return FileResponse(ROOT / 'static' / 'login.html', headers={'Cache-Control':'no-store'})
     return FileResponse(ROOT / 'static' / 'index.html', headers={'Cache-Control':'no-store'})
 
 @app.get('/api/settings')
-def get_settings():
-    return settings()
+def get_settings(request: Request):
+    data = settings(request.state.user['id'])
+    data['is_admin'] = request.state.user['is_admin']
+    data['can_edit_global'] = request.state.user['is_admin']
+    return data
 
 @app.put('/api/settings')
-def put_settings(data: Settings):
-    save(data)
+def put_settings(data: Settings, request: Request):
+    try:
+        save(data, request.state.user['id'], is_admin=request.state.user['is_admin'])
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {'ok': True}
 
 class PluginSelection(BaseModel):
     plugin: str = Field(min_length=1,max_length=120)
 
 @app.get('/api/chunk-plugins')
-def list_chunk_plugins():
+def list_chunk_plugins(request: Request):
     from src.chunk_plugins import installed_plugins
-    return {'selected':repo.settings().get('chunking_plugin','local'),'plugins':installed_plugins()}
+    user_id = request.state.user['id']
+    return {'selected':repo.settings(user_id).get('chunking_plugin','local'),
+            'plugins':installed_plugins(), 'can_edit':request.state.user['is_admin']}
 
 @app.put('/api/chunk-plugins')
-def select_chunk_plugin(data: PluginSelection):
+def select_chunk_plugin(data: PluginSelection, request: Request):
     import uuid
     from src.chunk_plugins import installed_plugins
+    if not request.state.user['is_admin']:
+        raise HTTPException(status_code=403, detail='Общие настройки может изменять только admin.')
     choice=next((item for item in installed_plugins() if item['id']==data.plugin),None)
     if choice is None or not choice['available']:
         raise HTTPException(status_code=400,detail='Плагин недоступен или не установлен.')
@@ -109,7 +187,8 @@ def test_provider(kind: str):
 
 @app.get('/api/events')
 def get_events():
-    return {'events': repo.events(), 'costs': repo.costs()}
+    return {'events': repo.events(), 'costs': repo.costs(),
+            'costs_by_key_version': repo.costs_by_key_version()}
 @app.get('/api/documents')
 def documents_list():
     from src.document_repository import list_documents
@@ -212,9 +291,9 @@ def document_chunks(document_id: str, offset: int = 0, limit: int = 20):
     return result
 
 @app.get('/api/index/status')
-def index_status():
+def index_status(request: Request):
     from src.indexing import job_status
-    return job_status()
+    return job_status(request.state.user['id'])
 
 @app.post('/api/documents/{document_id}/index')
 def index_start(document_id: str):

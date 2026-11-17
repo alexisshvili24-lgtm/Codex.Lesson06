@@ -17,6 +17,7 @@ for (const eventName of ['input', 'change']) documentForm.addEventListener(event
 });
 async function documentApi(url, options) {
   const response = await fetch(url, options);
+  if (response.status === 401) { location.replace('/'); throw new Error('Сессия завершена. Войдите снова.'); }
   const result = await response.json();
   if (!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : 'Проверьте поля документа.');
   return result;

@@ -4,7 +4,8 @@ import json
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import select
-from src.database import Session, Document, ChunkRun, PreparedChunk, Event, Setting
+from src.database import Session, Document, ChunkRun, PreparedChunk, Setting
+from src.event_store import add_event
 
 FIELDS=('id','title','source_type','language','version','source_url','filename','sha256')
 
@@ -41,7 +42,9 @@ def save_run(document_id, revision, result, request_id):
         session.add(ChunkRun(id=run_id,document_id=document_id,revision=revision,
             created_at=datetime.now(timezone.utc).isoformat(),warnings=json.dumps(result['warnings'],ensure_ascii=False),
             chunk_count=len(result['chunks'])))
-        session.add(Event(request_id=request_id,created_at=datetime.now(timezone.utc).isoformat(),operation='document_prepare',status='ok',model='',duration_ms=0,cost_rub=None,payload=json.dumps({'document_id':document_id,'run_id':run_id,'chunks':len(result['chunks']),'warnings':len(result['warnings']),'plugin':result.get('plugin',_selected(session))})))
+        add_event(session, request_id, 'document_prepare', 'ok', payload={
+            'document_id': document_id, 'run_id': run_id, 'chunks': len(result['chunks']),
+            'warnings': len(result['warnings']), 'plugin': result.get('plugin', _selected(session))})
         for position,chunk in enumerate(result['chunks']):
             session.add(PreparedChunk(run_id=run_id,position=position,chunk_id=chunk['chunk_id'],
                 payload=json.dumps(chunk,ensure_ascii=False)))

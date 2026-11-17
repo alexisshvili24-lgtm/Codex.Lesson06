@@ -3,7 +3,16 @@ import time
 from decimal import Decimal, InvalidOperation
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.request import Request, HTTPRedirectHandler, build_opener
+
+
+class _RejectRedirects(HTTPRedirectHandler):
+    """Не пересылает Authorization за перенаправлением на другой адрес."""
+    def redirect_request(self, request, fp, code, msg, headers, newurl):
+        return None
+
+
+_opener = build_opener(_RejectRedirects)
 
 class ProviderError(Exception):
     def __init__(self, message, request=None, response=None, generation_id=None):
@@ -13,10 +22,14 @@ class ProviderError(Exception):
         self.generation_id = generation_id
 
 def request_json(base, key, path, body=None):
+    from src.service import allowed_base_urls, _normalize_https_base_url
+    safe_base = _normalize_https_base_url(base)
+    if safe_base is None or safe_base not in allowed_base_urls():
+        raise ProviderError('RouterAI Base URL запрещён настройками сервера.')
     data = None if body is None else json.dumps(body, ensure_ascii=False).encode('utf-8')
-    req = Request(base.rstrip('/') + path, data=data, headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'})
+    req = Request(safe_base + path, data=data, headers={'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json'})
     try:
-        with urlopen(req, timeout=45) as response:
+        with _opener.open(req, timeout=45) as response:
             raw = response.read().decode('utf-8', errors='replace')
             generation_id = response.headers.get('X-Generation-Id')
     except HTTPError as exc:

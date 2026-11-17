@@ -9,6 +9,7 @@ from src.chunk_store import snapshot, latest_run
 from src.embeddings import embed_texts, EmbeddingError
 from src.index_repository import active, activate, run_chunk_ids, register_pending, pending_collections, pending_is_unreferenced, forget_pending
 from src.service import settings, repo
+from src.request_context import request_context_snapshot, set_user_id, reset_user_id
 from src.vector_store import VectorStore
 
 _index_lock = threading.Lock()
@@ -122,9 +123,18 @@ def index_document(document_id, *, path=None, embedder=embed_texts, progress=Non
 _job_lock = threading.Lock()
 _job = {'state':'idle'}
 
-def job_status():
+def job_status(user_id=None):
+    from src.request_context import current_user_id
+    owner_id = user_id if user_id is not None else current_user_id()
     with _job_lock:
         state = dict(_job)
+        job_owner = state.get('owner_id')
+    state.pop('owner_id', None)
+    if job_owner is not None and job_owner != owner_id:
+        state.pop('expenses', None)
+        if isinstance(state.get('result'), dict):
+            state['result'] = dict(state['result'])
+            state['result'].pop('expenses', None)
     if state.get('state') == 'idle':
         last = repo.last_index_job()
         if last and last['status'] == 'running':
@@ -133,17 +143,20 @@ def job_status():
     return state
 
 def start_job(document_id, *, prepare=False):
+    owner_id, owner_key, owner_key_version = request_context_snapshot()
     with _job_lock:
         if _job.get('state') == 'running':
             raise IndexingError('Другая индексация уже выполняется.')
         job_id = str(uuid.uuid4())
         repo.log(job_id, 'index_job', 'running', payload={'document_id':document_id})
         _job.clear()
-        _job.update(state='running', document_id=document_id, completed=0, total=0, phase='preparing' if prepare else 'indexing')
+        _job.update(state='running', document_id=document_id, completed=0, total=0,
+                    phase='preparing' if prepare else 'indexing', owner_id=owner_id)
     def progress(completed, total):
         with _job_lock:
             _job.update(phase='indexing', completed=completed, total=total)
     def worker():
+        context_token = set_user_id(owner_id or 1, owner_key, owner_key_version)
         try:
             warnings = []
             if prepare:
@@ -167,8 +180,10 @@ def start_job(document_id, *, prepare=False):
             repo.log(job_id, 'index_job', 'error', payload={'document_id':document_id, 'error':str(exc)})
             with _job_lock:
                 _job.update(state='error', error=str(exc), expenses=getattr(exc, 'index_expenses', None))
+        finally:
+            reset_user_id(context_token)
     threading.Thread(target=worker, daemon=True).start()
-    return job_status()
+    return job_status(owner_id)
 
 
 def cleanup_deleted_document(document_id, *, path=None):
